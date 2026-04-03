@@ -4,7 +4,7 @@ import SwiftUI
 final class PreferencesStore: ObservableObject {
     static let shared = PreferencesStore()
 
-    @AppStorage("gridRows") var rows: Int = 3
+    @AppStorage("gridRows") var rows: Int = 2
     @AppStorage("gridCols") var cols: Int = 3
     @AppStorage("gridGap") var gap: Double = 0
     @AppStorage("gridPadding") var padding: Double = 0

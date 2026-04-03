@@ -13,7 +13,7 @@ struct GridConfiguration: Equatable, Sendable {
     var gap: CGFloat
     var padding: CGFloat
 
-    static let `default` = GridConfiguration(rows: 3, cols: 3, gap: 0, padding: 0)
+    static let `default` = GridConfiguration(rows: 2, cols: 3, gap: 0, padding: 0)
 
     static let presets: [(name: String, config: GridConfiguration)] = [
         ("2x2", GridConfiguration(rows: 2, cols: 2, gap: 0, padding: 0)),
