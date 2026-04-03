@@ -78,7 +78,7 @@ struct OnboardingView: View {
             }
 
             // Done
-            Button("Get Started") {
+            Button(prefs.onboardingCompleted ? "Close" : "Get Started") {
                 prefs.onboardingCompleted = true
                 NSApp.keyWindow?.close()
             }
