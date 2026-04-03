@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- 유리 윈도우 그라데이션 (위: 밝은 블루, 아래: 어두운 블루) -->
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ccdcf0" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#8aaad0" stop-opacity="0.7"/>
+    </linearGradient>
+
+    <!-- 배경 그라데이션 (인디고 → 퍼플 대각선) -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+
+    <!-- 윈도우 그림자 필터 -->
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="1.5" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- 배경: 인디고→퍼플 그라데이션 둥근 사각형 -->
+  <rect width="256" height="256" rx="55" fill="url(#bg)"/>
+
+  <!-- 배경 안쪽 테두리 (미세한 밝은 선) -->
+  <rect x="10" y="10" width="236" height="236" rx="47" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- 3x3 그리드 선 (테두리 없이 내부 선만) -->
+  <g stroke="rgba(255,255,255,0.35)" stroke-width="6" stroke-linecap="round">
+    <line x1="85.3"  y1="20" x2="85.3"  y2="236"/>
+    <line x1="170.7" y1="20" x2="170.7" y2="236"/>
+    <line x1="20" y1="85.3"  x2="236" y2="85.3"/>
+    <line x1="20" y1="170.7" x2="236" y2="170.7"/>
+  </g>
+
+  <!-- 유리 질감 윈도우 창 -->
+  <g filter="url(#shadow)">
+    <!-- 윈도우 본체 (그리드 [0][0]~[1][1] 영역에 정렬) -->
+    <rect x="54" y="54" width="113" height="113" rx="10" fill="url(#glass)"/>
+
+    <!-- 트래픽 라이트 (닫기, 최소화, 전체화면) -->
+    <circle cx="72"  cy="72" r="4.5" fill="rgba(255,95,87,0.9)"/>
+    <circle cx="86"  cy="72" r="4.5" fill="rgba(255,189,46,0.9)"/>
+    <circle cx="100"  cy="72" r="4.5" fill="rgba(40,200,64,0.9)"/>
+
+    <!-- 타이틀바 구분선 -->
+    <!-- <line x1="80" y1="90" x2="212" y2="90" stroke="rgba(255,255,255,0.3)" stroke-width="0.75"/> -->
+
+    <!-- 유리 반사 효과 (윈도우 상단 밝은 띠) -->
+    <!-- <rect x="74" y="58" width="144" height="14" rx="10" fill="rgba(255,255,255,0.12)"/> -->
+  </g>
+</svg>
