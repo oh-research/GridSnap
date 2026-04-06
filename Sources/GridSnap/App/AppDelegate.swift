@@ -22,11 +22,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarController.setup()
         dragCoordinator.statusBarController = statusBarController
 
-        AccessibilityManager.shared.checkPermission()
+        if PreferencesStore.shared.onboardingCompleted {
+            AccessibilityManager.shared.checkPermission()
+        }
         debugLog("[GridSnap] Accessibility trusted: \(AccessibilityManager.shared.isTrusted)")
 
-        if !PreferencesStore.shared.onboardingCompleted {
-            statusBarController.showOnboarding()
+        debugLog("[GridSnap] onboardingCompleted: \(PreferencesStore.shared.onboardingCompleted), allPermissionsGranted: \(AccessibilityManager.shared.allPermissionsGranted)")
+        if !PreferencesStore.shared.onboardingCompleted || !AccessibilityManager.shared.allPermissionsGranted {
+            debugLog("[GridSnap] Will show onboarding")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+                debugLog("[GridSnap] Calling showOnboarding()")
+                statusBarController.showOnboarding()
+                debugLog("[GridSnap] showOnboarding() returned")
+            }
         }
 
         if AccessibilityManager.shared.allPermissionsGranted {

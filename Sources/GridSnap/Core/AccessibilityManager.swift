@@ -22,8 +22,17 @@ final class AccessibilityManager: ObservableObject {
     }
 
     func requestPermission() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
-        isTrusted = AXIsProcessTrustedWithOptions(options)
+        isTrusted = AXIsProcessTrusted()
+        if !isTrusted {
+            openAccessibilitySettings()
+        }
+    }
+
+    /// Opens System Settings to the Accessibility pane.
+    func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// Opens System Settings to the Input Monitoring pane.
@@ -33,22 +42,9 @@ final class AccessibilityManager: ObservableObject {
         }
     }
 
-    /// Checks if Input Monitoring is available by attempting a temporary CGEventTap.
+    /// Checks if Input Monitoring permission is granted.
     private func checkInputMonitoring() -> Bool {
-        let mask: CGEventMask = 1 << CGEventType.leftMouseDown.rawValue
-        guard let tap = CGEvent.tapCreate(
-            tap: .cghidEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly,
-            eventsOfInterest: mask,
-            callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
-            userInfo: nil
-        ) else {
-            return false
-        }
-        // Tap created successfully — clean up immediately
-        CGEvent.tapEnable(tap: tap, enable: false)
-        return true
+        return CGPreflightListenEventAccess()
     }
 
     /// Begins polling every `interval` seconds, publishing changes.

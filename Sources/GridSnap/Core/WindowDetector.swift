@@ -172,33 +172,37 @@ final class WindowDetector: Sendable {
             let ownerPID = (window[kCGWindowOwnerPID as String] as? Int).map { pid_t($0) } ?? 0
             let title = (window[kCGWindowName as String] as? String) ?? ""
 
-            // Build a PID-scoped AXUIElement as best approximation
+            // Find the actual AX window element matching this CGWindowID
             let appElement = AXUIElementCreateApplication(ownerPID)
+            guard let windowElement = axWindow(from: appElement, matching: windowID) else { continue }
 
-            // Fallback: check if the window frame equals any screen frame
-            var isFullscreen = false
-            for screen in NSScreen.screens {
-                let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
-                let screenCGFrame = CGRect(
-                    x: screen.frame.origin.x,
-                    y: primaryHeight - screen.frame.origin.y - screen.frame.height,
-                    width: screen.frame.width,
-                    height: screen.frame.height
-                )
-                if rect == screenCGFrame {
-                    isFullscreen = true
-                    break
-                }
-            }
+            let isFullscreen = checkFullscreen(element: windowElement, frame: rect)
 
             return WindowInfo(
                 windowID: windowID,
                 pid: ownerPID,
                 frame: rect,
                 title: title,
-                axElement: appElement,
+                axElement: windowElement,
                 isFullscreen: isFullscreen
             )
+        }
+        return nil
+    }
+
+    // MARK: - AX window lookup by CGWindowID
+
+    /// Finds the AX window element whose CGWindowID matches `targetID`.
+    private func axWindow(from appElement: AXUIElement, matching targetID: CGWindowID) -> AXUIElement? {
+        var windowsRef: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
+        guard result == .success, let windows = windowsRef as? [AXUIElement] else { return nil }
+
+        for window in windows {
+            let wid = cgWindowID(from: window)
+            if wid == targetID {
+                return window
+            }
         }
         return nil
     }

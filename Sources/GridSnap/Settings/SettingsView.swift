@@ -28,14 +28,27 @@ struct SettingsView: View {
 
             // Presets
             GroupBox("Presets") {
-                HStack(spacing: 8) {
-                    ForEach(GridConfiguration.presets, id: \.name) { preset in
-                        PresetButton(
-                            name: preset.name,
-                            isActive: prefs.rows == preset.config.rows
-                                && prefs.cols == preset.config.cols
-                        ) {
-                            prefs.applyPreset(preset.config)
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(GridConfiguration.presets.prefix(3), id: \.name) { preset in
+                            PresetButton(
+                                name: preset.name,
+                                isActive: prefs.rows == preset.config.rows
+                                    && prefs.cols == preset.config.cols
+                            ) {
+                                prefs.applyPreset(preset.config)
+                            }
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        ForEach(GridConfiguration.presets.suffix(3), id: \.name) { preset in
+                            PresetButton(
+                                name: preset.name,
+                                isActive: prefs.rows == preset.config.rows
+                                    && prefs.cols == preset.config.cols
+                            ) {
+                                prefs.applyPreset(preset.config)
+                            }
                         }
                     }
                 }

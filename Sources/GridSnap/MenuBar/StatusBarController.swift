@@ -111,7 +111,10 @@ final class StatusBarController: NSObject {
         window.title = "GridSnap Settings"
         window.contentView = NSHostingView(rootView: SettingsView())
         window.center()
+        window.isReleasedWhenClosed = false
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow = window
     }
@@ -122,8 +125,8 @@ final class StatusBarController: NSObject {
 
     func showOnboarding() {
         if let existing = onboardingWindow, existing.isVisible {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            existing.orderFrontRegardless()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -138,9 +141,9 @@ final class StatusBarController: NSObject {
         window.center()
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.makeKeyAndOrderFront(nil)
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
+        window.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
         onboardingWindow = window
     }
 
