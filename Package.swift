@@ -7,12 +7,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "GridSnap",
-            path: "Sources/GridSnap"
-        ),
-        .testTarget(
-            name: "GridSnapTests",
-            dependencies: ["GridSnap"],
-            path: "Tests/GridSnapTests"
+            path: "Sources"
         ),
     ]
 )

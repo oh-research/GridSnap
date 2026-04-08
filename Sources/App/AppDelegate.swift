@@ -1,15 +1,20 @@
 import Cocoa
+import os
 
+/// Unified logger for GridSnap. Debug-level messages do not persist to disk;
+/// to stream them live during development, run:
+///
+///     log stream --predicate 'subsystem == "com.ohresearch.gridsnap"' --level debug
+private let appLogger = Logger(subsystem: "com.ohresearch.gridsnap", category: "GridSnap")
+
+/// Emits a debug message via the unified logging system.
+///
+/// Replaces the previous file-based logger that wrote to `~/gridsnap-debug.log`
+/// on every call — that approach bloated the user's home directory in release
+/// builds. `os.Logger.debug` messages are not persisted unless a caller is
+/// actively streaming them (via `log stream` or Console.app).
 func debugLog(_ msg: String) {
-    let logFile = NSHomeDirectory() + "/gridsnap-debug.log"
-    let line = "\(Date()): \(msg)\n"
-    if let handle = FileHandle(forWritingAtPath: logFile) {
-        handle.seekToEndOfFile()
-        handle.write(line.data(using: .utf8)!)
-        handle.closeFile()
-    } else {
-        FileManager.default.createFile(atPath: logFile, contents: line.data(using: .utf8))
-    }
+    appLogger.debug("\(msg, privacy: .public)")
 }
 
 @MainActor

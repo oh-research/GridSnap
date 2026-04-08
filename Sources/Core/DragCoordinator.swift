@@ -420,10 +420,24 @@ extension DragCoordinator: EventMonitorDelegate {
             }
         }
 
-        // --- Case 4: Shift pressed during an ongoing drag → late activation ---
+        // --- Case 4: Shift pressed while mouse button is held → late activation ---
+        //
+        // Fires in two scenarios:
+        //  (a) User started dragging without Shift, then pressed Shift mid-drag
+        //      (`isDraggingWithoutShift == true`).
+        //  (b) User clicked without Shift, then pressed Shift statically before
+        //      any movement (`mouseDownPos != nil`). Without this second case,
+        //      the common "click → hold → shift → drag" sequence is silently
+        //      ignored because the state machine only transitions to
+        //      `.potentialDrag` on `mouseDown + shiftDown`.
         if event.kind == .flagsChanged && event.shiftDown {
-            if case .idle = currentState, shared.isDraggingWithoutShift {
-                prepareWindowTracking(at: event.location)
+            if case .idle = currentState, shared.mouseDownPos != nil {
+                // User is already holding the mouse button down (and may have
+                // moved it mid-drag). The native OS drag has validated that
+                // the click was on a draggable chrome area, so skip the
+                // isTitleBar heuristic which is too strict for Finder toolbars,
+                // path bars, and other extended window chrome.
+                prepareWindowTracking(at: event.location, requireTitleBar: false)
                 let syntheticDown = RawMouseEvent(
                     kind: .mouseDown, location: event.location,
                     shiftDown: true, cmdDown: false, timestamp: event.timestamp
@@ -464,22 +478,39 @@ extension DragCoordinator: EventMonitorDelegate {
     }
 
     /// Detects the window at the given point and prepares for dragging.
-    private nonisolated func prepareWindowTracking(at point: CGPoint) {
-        let info = windowDetector.windowAtPoint(point)
-        if let info, info.isTitleBar(cursorY: point.y), !info.isFullscreen {
-            shared.lastTrackedWindow = TrackedWindow(
-                windowID: info.windowID,
-                axElement: info.axElement,
-                pid: info.pid,
-                originalFrame: info.frame
-            )
-            let cursorPoint = point
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                let screen = self.screenContaining(point: cursorPoint) ?? NSScreen.main
-                if let screen {
-                    self.rebuildGrid(for: screen)
-                }
+    ///
+    /// Clears any previously-tracked window before attempting detection, so a
+    /// failed detection leaves `lastTrackedWindow` as nil rather than a stale
+    /// reference. Without this, a subsequent snap could operate on whichever
+    /// window was tracked by the previous drag.
+    ///
+    /// - Parameter requireTitleBar: When true (default), only accepts the
+    ///   window if the cursor is within the `isTitleBar` heuristic area. Case 1
+    ///   (Shift+mouseDown from idle) uses this because intent is ambiguous —
+    ///   the user may be shift-clicking for non-window-drag reasons. Case 4
+    ///   (Shift pressed during an ongoing native drag) passes `false` because
+    ///   the user has already committed to a window drag at the OS level and
+    ///   the Shift press is an explicit opt-in to snap mode.
+    private nonisolated func prepareWindowTracking(at point: CGPoint, requireTitleBar: Bool = true) {
+        shared.lastTrackedWindow = nil
+
+        guard let info = windowDetector.windowAtPoint(point) else { return }
+        guard !info.isFullscreen else { return }
+        if requireTitleBar, !info.isTitleBar(cursorY: point.y) { return }
+
+        shared.lastTrackedWindow = TrackedWindow(
+            windowID: info.windowID,
+            axElement: info.axElement,
+            pid: info.pid,
+            originalFrame: info.frame
+        )
+
+        let cursorPoint = point
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let screen = self.screenContaining(point: cursorPoint) ?? NSScreen.main
+            if let screen {
+                self.rebuildGrid(for: screen)
             }
         }
     }

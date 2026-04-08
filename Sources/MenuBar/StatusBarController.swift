@@ -6,6 +6,7 @@ final class StatusBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var aboutWindow: NSWindow?
 
     /// Non-interactive status menu item shown at top when an error is present.
     private var statusMenuItem: NSMenuItem?
@@ -14,7 +15,7 @@ final class StatusBarController: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "grid", accessibilityDescription: "GridSnap")
+            button.image = MenuBarIcon.make()
         }
 
         statusItem.menu = buildMenu()
@@ -47,7 +48,7 @@ final class StatusBarController: NSObject {
     /// Restores the normal menu bar icon and removes the error status item.
     func clearError() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "grid", accessibilityDescription: "GridSnap")
+            button.image = MenuBarIcon.make()
         }
 
         if let item = statusMenuItem, let menu = statusItem.menu {
@@ -80,6 +81,10 @@ final class StatusBarController: NSObject {
         let howToItem = NSMenuItem(title: "How to Use...", action: #selector(openOnboarding(_:)), keyEquivalent: "")
         howToItem.target = self
         menu.addItem(howToItem)
+
+        let aboutItem = NSMenuItem(title: "About GridSnap", action: #selector(openAbout(_:)), keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
@@ -123,6 +128,30 @@ final class StatusBarController: NSObject {
         showOnboarding()
     }
 
+    @objc private func openAbout(_ sender: Any?) {
+        if let existing = aboutWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 340),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "About GridSnap"
+        window.contentView = NSHostingView(rootView: AboutView())
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        aboutWindow = window
+    }
+
     func showOnboarding() {
         if let existing = onboardingWindow, existing.isVisible {
             existing.orderFrontRegardless()
@@ -136,7 +165,7 @@ final class StatusBarController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "GridSnap"
+        window.title = "How to Use GridSnap"
         window.contentView = NSHostingView(rootView: OnboardingView())
         window.center()
         window.isReleasedWhenClosed = false

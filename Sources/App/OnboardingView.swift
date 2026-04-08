@@ -6,29 +6,9 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                AppIconView()
-                    .frame(width: 96, height: 96)
-
-                Text("GridSnap")
-                    .font(.title)
-                    .fontWeight(.bold)
-
-                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                Text("Developed by oh-research")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                Link("github.com/oh-research/GridSnap",
-                     destination: URL(string: "https://github.com/oh-research/GridSnap")!)
-                    .font(.caption)
-            }
-
-            Divider()
+            Text("How to Use GridSnap")
+                .font(.title2)
+                .fontWeight(.semibold)
 
             // How to use
             GroupBox("How to use") {
