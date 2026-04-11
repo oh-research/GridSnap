@@ -16,10 +16,13 @@ struct SettingsView: View {
             )
 
             LayoutEditor(
-                title: "Secondary layout (Shift + Opt)",
+                title: "Secondary layout (Shift + Ctrl)",
                 rows: $prefs.secondaryRows,
                 cols: $prefs.secondaryCols
             )
+
+            Toggle("Keyboard shortcuts (Shift + Opt + Arrow)", isOn: $prefs.keyboardSnapEnabled)
+                .font(.subheadline)
 
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .font(.subheadline)

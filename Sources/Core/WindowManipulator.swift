@@ -12,9 +12,17 @@ final class WindowManipulator: Sendable {
 
     /// Moves and resizes `element` to `frame` (CG coordinate system).
     /// Returns true on success.
+    ///
+    /// Order: size → position → size. Setting size first lets the window
+    /// shrink to fit (respecting its minimum-size constraint) before the
+    /// move, preventing the window from overflowing the target cell while
+    /// it's still at its original (possibly larger) dimensions. The final
+    /// size re-application handles apps that reset size during a position
+    /// change.
     @discardableResult
     func setFrame(_ frame: CGRect, for element: AXUIElement) -> Bool {
         guard isValid(element) else { return false }
+        _ = setSize(frame.size, for: element)
         let posOK = setPosition(frame.origin, for: element)
         let sizeOK = setSize(frame.size, for: element)
         return posOK && sizeOK

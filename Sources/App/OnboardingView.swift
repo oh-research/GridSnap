@@ -22,12 +22,12 @@ struct OnboardingView: View {
                         text: "A grid overlay appears on screen"
                     )
                     HowToRow(
-                        icon: "option",
-                        text: "Add Option to switch to the Secondary layout"
+                        icon: "control",
+                        text: "Add Control to switch to the Secondary layout"
                     )
                     HowToRow(
-                        icon: "command",
-                        text: "Add Command to select a multi-cell region"
+                        icon: "option",
+                        text: "Add Option to select a multi-cell region"
                     )
                     HowToRow(
                         icon: "arrow.down.to.line",

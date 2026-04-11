@@ -12,6 +12,7 @@ final class PreferencesStore: ObservableObject {
     @AppStorage("gridPadding") var padding: Double = 0
     @AppStorage("onboardingCompleted") var onboardingCompleted: Bool = false
     @AppStorage("isEnabled") var isEnabled: Bool = true
+    @AppStorage("keyboardSnapEnabled") var keyboardSnapEnabled: Bool = false
 
     /// Mirrors the SMAppService login item state. Setting this registers/unregisters the app.
     var launchAtLogin: Bool {

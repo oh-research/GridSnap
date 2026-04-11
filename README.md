@@ -6,17 +6,18 @@
   <img src="Resources/sniq_icon.svg" width="128" alt="Sniq icon">
 </p>
 
-> Shift + 드래그로 윈도우를 두 개의 커스텀 레이아웃에 스냅하는 macOS 유틸리티
+> Shift + 드래그(또는 키보드 단축키)로 윈도우를 두 개의 커스텀 레이아웃에 스냅하는 macOS 유틸리티
 
-macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. Sniq은 **두 개의 레이아웃을 미리 지정해두고 Shift / Shift+Opt 로 즉시 전환**하며 창을 자유롭게 배치합니다.
+macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. Sniq은 **두 개의 레이아웃을 미리 지정해두고 Shift / Shift+Ctrl 로 즉시 전환**하며 창을 자유롭게 배치합니다. 드래그와 키보드 단축키 두 경로를 모두 지원합니다.
 
 ## 특징
 
-- **두 레이아웃 즉시 전환** — Primary (Shift) · Secondary (Shift+Opt), 각각 독립 행·열 (1–10)
+- **두 레이아웃 즉시 전환** — Primary (Shift) · Secondary (Shift+Ctrl), 각각 독립 행·열 (1–10)
 - **Shift + 제목줄 드래그** — Primary 레이아웃 그리드 오버레이 표시, 놓으면 셀에 스냅
-- **Shift + Opt + 드래그** — Secondary 레이아웃으로 전환
-- **드래그 중 Opt 토글** — 레이아웃을 실시간으로 바꿔가며 비교 가능
-- **Cmd 추가** — 여러 셀에 걸친 직사각형 영역으로 스냅 (두 레이아웃 모두 동일 동작)
+- **Shift + Ctrl + 드래그** — Secondary 레이아웃으로 전환
+- **드래그 중 Ctrl 토글** — 레이아웃을 실시간으로 바꿔가며 비교 가능
+- **Opt 추가** — 여러 셀에 걸친 직사각형 영역으로 스냅 (두 레이아웃 모두 동일 동작)
+- **키보드 단축키 (opt-in)** — `Shift+Opt+화살표` 로 Primary, `Shift+Ctrl+Opt+화살표` 로 Secondary 레이아웃 인접 셀로 즉시 이동. 텍스트 편집 중에는 자동 우회
 - **다중 모니터 지원** — 각 화면에 독립 그리드 표시
 - **메뉴바 앱** — Dock 아이콘 없이 메뉴바에서만 동작
 - **다크/라이트 모드** 자동 대응
@@ -50,20 +51,29 @@ brew install --cask sniq
 2. Primary 레이아웃의 그리드 오버레이가 나타나고 커서 위치의 셀이 하이라이트됩니다
 3. 마우스를 놓으면 창이 해당 셀 크기/위치로 스냅됩니다
 
-### Secondary 레이아웃 (Shift + Opt)
+### Secondary 레이아웃 (Shift + Ctrl)
 
-1. **Shift + Opt** 를 함께 누른 채 제목줄을 드래그하세요
+1. **Shift + Ctrl** 를 함께 누른 채 제목줄을 드래그하세요
 2. Secondary 레이아웃의 그리드 오버레이가 나타납니다
 3. 마우스를 놓으면 창이 Secondary 레이아웃의 셀로 스냅됩니다
 
-> 드래그 중에 **Opt** 만 눌렀다 뗐다 하면 Primary ↔ Secondary 가 실시간으로 전환됩니다.
-> (단, Cmd 로 다중 셀 선택 중에는 무시됩니다)
+> 드래그 중에 **Ctrl** 만 눌렀다 뗐다 하면 Primary ↔ Secondary 가 실시간으로 전환됩니다.
+> (단, Opt 로 다중 셀 선택 중에는 무시됩니다)
 
 ### 다중 셀 스냅
 
-1. Shift + 드래그 중 **Cmd**를 추가로 누르세요
-2. Cmd를 누른 시점의 셀이 앵커가 되고, 커서 이동에 따라 직사각형 영역이 하이라이트됩니다
+1. Shift + 드래그 중 **Opt**를 추가로 누르세요
+2. Opt를 누른 시점의 셀이 앵커가 되고, 커서 이동에 따라 직사각형 영역이 하이라이트됩니다
 3. 마우스를 놓으면 직사각형 영역 전체 크기로 스냅됩니다
+
+### 키보드 단축키 (opt-in)
+
+**Settings...** → **Keyboard shortcuts** 토글을 켜면 활성화됩니다 (기본 OFF).
+
+- `Shift + Opt + ←/→/↑/↓` — 포커스 창을 **Primary** 레이아웃의 인접 셀로 즉시 이동
+- `Shift + Ctrl + Opt + ←/→/↑/↓` — 포커스 창을 **Secondary** 레이아웃의 인접 셀로 즉시 이동
+
+텍스트 편집 중(TextEdit, Notes, Xcode 등)에는 Sniq 이 이벤트를 가로채지 않고 macOS 기본 단어 선택이 동작합니다. 터미널 에뮬레이터(iTerm2, Terminal 등)는 창 조작이 우선이 되도록 예외 처리됩니다.
 
 ## 권한
 
@@ -89,7 +99,8 @@ Sniq은 두 가지 macOS 권한이 필요합니다:
 메뉴바 아이콘 > **Settings...**에서 변경할 수 있습니다:
 
 - **Primary layout (Shift)** — 행·열 수 (1–10)
-- **Secondary layout (Shift + Opt)** — 행·열 수 (1–10)
+- **Secondary layout (Shift + Ctrl)** — 행·열 수 (1–10)
+- **Keyboard shortcuts (Shift + Opt + Arrow)** — 기본 OFF
 - **로그인 시 자동 실행**
 
 ### 설정 예시

@@ -13,7 +13,7 @@ struct RawMouseEvent: Sendable {
     let kind: Kind
     let location: CGPoint
     let shiftDown: Bool
-    let cmdDown: Bool
+    let ctrlDown: Bool
     let optDown: Bool
     let timestamp: UInt64
 }
@@ -46,6 +46,12 @@ final class EventMonitor: @unchecked Sendable {
 
     weak var delegate: (any EventMonitorDelegate)?
 
+    /// Synchronous keyboard handler invoked from the CGEventTap callback
+    /// thread. Return `true` to suppress the event (Sniq claims it); return
+    /// `false` to pass it through to the system. Must return within the tap
+    /// budget (~1 ms). Parameters: `(keyCode, shift, ctrl, opt)`.
+    var keyboardHandler: (@Sendable (Int64, Bool, Bool, Bool) -> Bool)?
+
     /// Called on the main queue when the event tap cannot be created.
     var onTapCreationFailure: (@Sendable () -> Void)?
 
@@ -59,10 +65,13 @@ final class EventMonitor: @unchecked Sendable {
             | (1 << CGEventType.leftMouseDragged.rawValue)
             | (1 << CGEventType.leftMouseUp.rawValue)
             | (1 << CGEventType.flagsChanged.rawValue)
+            | (1 << CGEventType.keyDown.rawValue)
 
-        // Try passive tap first; fall back to active tap.
-        let newTap = createTap(options: .listenOnly, mask: eventMask)
-            ?? createTap(options: .defaultTap, mask: eventMask)
+        // Use active tap so keyboard shortcuts can suppress events when
+        // claimed by Sniq. Passive (.listenOnly) cannot modify or block
+        // events, which caused arrow escape sequences to leak into
+        // terminal apps after window snapping.
+        let newTap = createTap(options: .defaultTap, mask: eventMask)
 
         guard let newTap else {
             debugLog("[EventMonitor] FAILED to create CGEventTap")
@@ -128,6 +137,21 @@ final class EventMonitor: @unchecked Sendable {
         let flags = event.flags
         let ts = mach_absolute_time()
 
+        // --- Keyboard shortcut fast path: consult handler, suppress if claimed ---
+        if type == .keyDown {
+            guard let handler = monitor.keyboardHandler else {
+                return Unmanaged.passUnretained(event)
+            }
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            let shouldSuppress = handler(
+                keyCode,
+                flags.contains(.maskShift),
+                flags.contains(.maskControl),
+                flags.contains(.maskAlternate)
+            )
+            return shouldSuppress ? nil : Unmanaged.passUnretained(event)
+        }
+
         let kind: RawMouseEvent.Kind
         switch type {
         case .leftMouseDown:    kind = .mouseDown
@@ -142,7 +166,7 @@ final class EventMonitor: @unchecked Sendable {
             kind: kind,
             location: location,
             shiftDown: flags.contains(.maskShift),
-            cmdDown: flags.contains(.maskCommand),
+            ctrlDown: flags.contains(.maskControl),
             optDown: flags.contains(.maskAlternate),
             timestamp: ts
         )

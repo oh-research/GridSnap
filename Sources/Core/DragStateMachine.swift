@@ -142,9 +142,9 @@ final class DragStateMachine: @unchecked Sendable {
             let cell = cellProvider?(e.location)
             return .shiftDragging(trackedWindow: tracked, currentCell: cell)
 
-        // Cmd pressed → enter multi-cell with current cell as anchor
+        // Opt pressed → enter multi-cell with current cell as anchor
         case (.shiftDragging(let tracked, let cell), .rawEvent(let e))
-            where e.kind == .flagsChanged && e.shiftDown && e.cmdDown:
+            where e.kind == .flagsChanged && e.shiftDown && e.optDown:
             guard let cell else { return state }
             return .multiCellSelecting(trackedWindow: tracked, anchorCell: cell, currentCell: cell)
 
@@ -170,9 +170,9 @@ final class DragStateMachine: @unchecked Sendable {
             let cell = cellProvider?(e.location)
             return .multiCellSelecting(trackedWindow: tracked, anchorCell: anchor, currentCell: cell)
 
-        // Cmd released (Shift still held) → back to single cell
+        // Opt released (Shift still held) → back to single cell
         case (.multiCellSelecting(let tracked, _, _), .rawEvent(let e))
-            where e.kind == .flagsChanged && e.shiftDown && !e.cmdDown:
+            where e.kind == .flagsChanged && e.shiftDown && !e.optDown:
             let cell = cellProvider?(e.location)
             return .shiftDragging(trackedWindow: tracked, currentCell: cell)
 

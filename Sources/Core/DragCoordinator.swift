@@ -44,6 +44,7 @@ final class DragCoordinator {
         observeScreenChanges()
         observeAccessibility()
         eventMonitor.delegate = self
+        KeyboardSnapCoordinator.shared.wire(to: eventMonitor)
         eventMonitor.onTapCreationFailure = { [weak self] in
             Task { @MainActor [weak self] in
                 self?.statusBarController?.showError("Could not create event tap. Check Accessibility permission.")
@@ -420,7 +421,7 @@ extension DragCoordinator: EventMonitorDelegate {
 
         // --- Case 1: Shift+mouseDown on title bar → start potential drag ---
         if event.kind == .mouseDown && event.shiftDown {
-            let variant: LayoutVariant = event.optDown ? .secondary : .primary
+            let variant: LayoutVariant = event.ctrlDown ? .secondary : .primary
             prepareWindowTracking(at: event.location, variant: variant)
         }
 
@@ -454,25 +455,25 @@ extension DragCoordinator: EventMonitorDelegate {
                 // the click was on a draggable chrome area, so skip the
                 // isTitleBar heuristic which is too strict for Finder toolbars,
                 // path bars, and other extended window chrome.
-                let variant: LayoutVariant = event.optDown ? .secondary : .primary
+                let variant: LayoutVariant = event.ctrlDown ? .secondary : .primary
                 prepareWindowTracking(at: event.location, requireTitleBar: false, variant: variant)
                 let syntheticDown = RawMouseEvent(
                     kind: .mouseDown, location: event.location,
-                    shiftDown: true, cmdDown: false, optDown: event.optDown,
+                    shiftDown: true, ctrlDown: event.ctrlDown, optDown: false,
                     timestamp: event.timestamp
                 )
                 stateMachine.process(event: syntheticDown)
                 let syntheticDrag = RawMouseEvent(
                     kind: .mouseDragged, location: event.location,
-                    shiftDown: true, cmdDown: false, optDown: event.optDown,
+                    shiftDown: true, ctrlDown: event.ctrlDown, optDown: false,
                     timestamp: event.timestamp
                 )
                 stateMachine.process(event: syntheticDrag)
-                // If Cmd is already held, trigger multi-cell immediately
-                if event.cmdDown {
+                // If Opt is already held, trigger multi-cell immediately
+                if event.optDown {
                     let syntheticFlags = RawMouseEvent(
                         kind: .flagsChanged, location: event.location,
-                        shiftDown: true, cmdDown: true, optDown: event.optDown,
+                        shiftDown: true, ctrlDown: event.ctrlDown, optDown: true,
                         timestamp: event.timestamp
                     )
                     stateMachine.process(event: syntheticFlags)
@@ -481,17 +482,17 @@ extension DragCoordinator: EventMonitorDelegate {
             }
         }
 
-        // --- Case 4b: Opt toggle during shiftDragging → switch layout variant ---
+        // --- Case 4b: Ctrl toggle during shiftDragging → switch layout variant ---
         //
         // Dynamic layout switching: while the user is actively dragging in
-        // `.shiftDragging`, pressing or releasing Opt rebuilds the grid with
+        // `.shiftDragging`, pressing or releasing Ctrl rebuilds the grid with
         // the other variant and pushes new cells to the visible overlay.
         // Ignored during `.multiCellSelecting` because the anchor cell was
         // recorded in the old grid and would become meaningless after a
         // layout change.
         if event.kind == .flagsChanged && event.shiftDown {
             if case .shiftDragging = currentState {
-                let newVariant: LayoutVariant = event.optDown ? .secondary : .primary
+                let newVariant: LayoutVariant = event.ctrlDown ? .secondary : .primary
                 if newVariant != shared.currentLayoutVariant {
                     shared.currentLayoutVariant = newVariant
                     let cursorPoint = event.location
@@ -538,7 +539,7 @@ extension DragCoordinator: EventMonitorDelegate {
     ///   the user has already committed to a window drag at the OS level and
     ///   the Shift press is an explicit opt-in to snap mode.
     /// - Parameter variant: Layout slot to activate for this drag. Determined
-    ///   by the `optDown` flag of the triggering event at drag start.
+    ///   by the `ctrlDown` flag of the triggering event at drag start.
     private nonisolated func prepareWindowTracking(
         at point: CGPoint,
         requireTitleBar: Bool = true,
