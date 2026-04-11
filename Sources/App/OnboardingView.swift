@@ -6,7 +6,7 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("How to Use GridSnap")
+            Text("How to Use Sniq")
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -20,6 +20,14 @@ struct OnboardingView: View {
                     HowToRow(
                         icon: "grid",
                         text: "A grid overlay appears on screen"
+                    )
+                    HowToRow(
+                        icon: "option",
+                        text: "Add Option to switch to the Secondary layout"
+                    )
+                    HowToRow(
+                        icon: "command",
+                        text: "Add Command to select a multi-cell region"
                     )
                     HowToRow(
                         icon: "arrow.down.to.line",

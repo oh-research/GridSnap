@@ -1,6 +1,6 @@
 import Cocoa
 
-/// Creates the GridSnap menu bar icon as a template `NSImage`.
+/// Creates the Sniq menu bar icon as a template `NSImage`.
 ///
 /// The design is a 3x3 grid inside a rounded rectangle border — the visual
 /// shorthand for "snap to grid". The image is marked `isTemplate = true`, so

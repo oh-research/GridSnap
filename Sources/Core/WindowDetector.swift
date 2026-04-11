@@ -1,16 +1,5 @@
 @preconcurrency import Cocoa
 
-// MARK: - Private API binding
-
-private typealias AXUIElementGetWindowFn =
-    @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
-
-private let _axGetWindowFn: AXUIElementGetWindowFn? = {
-    guard let handle = dlopen(nil, RTLD_LAZY),
-          let sym = dlsym(handle, "_AXUIElementGetWindow") else { return nil }
-    return unsafeBitCast(sym, to: AXUIElementGetWindowFn.self)
-}()
-
 // MARK: - WindowInfo
 
 struct WindowInfo: @unchecked Sendable {
@@ -25,7 +14,7 @@ struct WindowInfo: @unchecked Sendable {
     ///
     /// The default of 80 covers title bar + toolbar for most apps (Finder, Safari,
     /// Notes, etc.). macOS itself treats the toolbar area as draggable chrome, so
-    /// GridSnap should honor user clicks in that region as drag-to-snap intent.
+    /// Sniq should honor user clicks in that region as drag-to-snap intent.
     func isTitleBar(cursorY: CGFloat, threshold: CGFloat = 80) -> Bool {
         let distFromTop = cursorY - frame.minY
         return distFromTop >= 0 && distFromTop <= threshold
@@ -112,16 +101,13 @@ final class WindowDetector: Sendable {
         var pid: pid_t = 0
         AXUIElementGetPid(windowElement, &pid)
 
-        // CGWindowID via private API
-        let windowID = cgWindowID(from: windowElement)
-
         let frame = CGRect(origin: pos, size: size)
 
         // Check fullscreen via AX attribute, then fallback to frame == screen frame
         let isFullscreen = checkFullscreen(element: windowElement, frame: frame)
 
         return WindowInfo(
-            windowID: windowID,
+            windowID: 0,
             pid: pid,
             frame: frame,
             title: title,
@@ -172,18 +158,16 @@ final class WindowDetector: Sendable {
             let rect = CGRect(x: x, y: y, width: w, height: h)
             guard rect.contains(point) else { continue }
 
-            let windowID = (window[kCGWindowNumber as String] as? Int).map { CGWindowID($0) } ?? 0
             let ownerPID = (window[kCGWindowOwnerPID as String] as? Int).map { pid_t($0) } ?? 0
             let title = (window[kCGWindowName as String] as? String) ?? ""
 
-            // Find the actual AX window element matching this CGWindowID
             let appElement = AXUIElementCreateApplication(ownerPID)
-            guard let windowElement = axWindow(from: appElement, matching: windowID) else { continue }
+            guard let windowElement = axWindow(from: appElement, matchingFrame: rect) else { continue }
 
             let isFullscreen = checkFullscreen(element: windowElement, frame: rect)
 
             return WindowInfo(
-                windowID: windowID,
+                windowID: 0,
                 pid: ownerPID,
                 frame: rect,
                 title: title,
@@ -194,30 +178,42 @@ final class WindowDetector: Sendable {
         return nil
     }
 
-    // MARK: - AX window lookup by CGWindowID
+    // MARK: - AX window lookup by frame
 
-    /// Finds the AX window element whose CGWindowID matches `targetID`.
-    private func axWindow(from appElement: AXUIElement, matching targetID: CGWindowID) -> AXUIElement? {
+    /// Finds the AX window element whose frame matches `targetFrame` within a
+    /// few points. CGWindowList bounds and AX position/size agree up to
+    /// sub-pixel rounding, so a 2pt tolerance is enough to disambiguate.
+    private func axWindow(from appElement: AXUIElement, matchingFrame targetFrame: CGRect) -> AXUIElement? {
         var windowsRef: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
         guard result == .success, let windows = windowsRef as? [AXUIElement] else { return nil }
 
         for window in windows {
-            let wid = cgWindowID(from: window)
-            if wid == targetID {
+            guard let frame = axFrame(of: window) else { continue }
+            if framesMatch(frame, targetFrame, tolerance: 2) {
                 return window
             }
         }
         return nil
     }
 
-    // MARK: - _AXUIElementGetWindow helper
+    private func axFrame(of element: AXUIElement) -> CGRect? {
+        var posRef: CFTypeRef?
+        var sizeRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posRef)
+        AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef)
 
-    /// Returns the CGWindowID for an AX window element, or 0 if unavailable.
-    func cgWindowID(from element: AXUIElement) -> CGWindowID {
-        guard let fn = _axGetWindowFn else { return 0 }
-        var wid: CGWindowID = 0
-        let result = fn(element, &wid)
-        return result == .success ? wid : 0
+        var pos = CGPoint.zero
+        var size = CGSize.zero
+        guard let p = posRef, AXValueGetValue(p as! AXValue, .cgPoint, &pos) else { return nil }
+        guard let s = sizeRef, AXValueGetValue(s as! AXValue, .cgSize, &size) else { return nil }
+        return CGRect(origin: pos, size: size)
+    }
+
+    private func framesMatch(_ a: CGRect, _ b: CGRect, tolerance: CGFloat) -> Bool {
+        abs(a.minX - b.minX) <= tolerance &&
+            abs(a.minY - b.minY) <= tolerance &&
+            abs(a.width - b.width) <= tolerance &&
+            abs(a.height - b.height) <= tolerance
     }
 }

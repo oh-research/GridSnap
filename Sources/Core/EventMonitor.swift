@@ -14,6 +14,7 @@ struct RawMouseEvent: Sendable {
     let location: CGPoint
     let shiftDown: Bool
     let cmdDown: Bool
+    let optDown: Bool
     let timestamp: UInt64
 }
 
@@ -39,7 +40,7 @@ final class EventMonitor: @unchecked Sendable {
 
     /// Serial queue for delegate callbacks; intentionally off the main thread.
     let eventQueue: DispatchQueue = DispatchQueue(
-        label: "com.gridsnap.eventmonitor",
+        label: "com.sniq.eventmonitor",
         qos: .userInteractive
     )
 
@@ -142,6 +143,7 @@ final class EventMonitor: @unchecked Sendable {
             location: location,
             shiftDown: flags.contains(.maskShift),
             cmdDown: flags.contains(.maskCommand),
+            optDown: flags.contains(.maskAlternate),
             timestamp: ts
         )
 

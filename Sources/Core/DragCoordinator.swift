@@ -133,9 +133,9 @@ final class DragCoordinator {
 
     // MARK: - Grid setup
 
-    private func rebuildGrid(for screen: NSScreen) {
+    private func rebuildGrid(for screen: NSScreen, variant: LayoutVariant) {
         activeScreen = screen
-        let config = PreferencesStore.shared.gridConfiguration
+        let config = PreferencesStore.shared.configuration(for: variant)
         let frame = screen.visibleFrameCG
         gridCells = GridCalculator.cells(for: frame, configuration: config)
         let newResolver = SnapResolver(cells: gridCells)
@@ -255,7 +255,7 @@ final class DragCoordinator {
         guard let screen = activeScreen ?? NSScreen.main else { return }
         // Grid should already be built from mouseDown, but rebuild if needed
         if gridCells.isEmpty {
-            rebuildGrid(for: screen)
+            rebuildGrid(for: screen, variant: shared.currentLayoutVariant)
         }
 
         // If switching screens, hide the previous overlay
@@ -265,11 +265,27 @@ final class DragCoordinator {
         }
         activeOverlayController = newController
 
-        // Convert screen-absolute CG cells to view-local coords for the overlay.
-        // The overlay window covers screen.frame (full screen including menu bar).
-        // View (0,0) = top-left of full screen in CG coords.
+        newController.show(on: screen, gridCells: viewLocalGridCells(for: screen))
+
+        if let window = newController.overlayWindow {
+            overlayAnimator.fadeIn(window: window)
+        }
+        isOverlayVisible = true
+    }
+
+    /// Pushes the current `gridCells` to the already-visible overlay without
+    /// triggering a fade-in. Used by the Opt-toggle layout-switch path.
+    private func pushGridToActiveOverlay(for screen: NSScreen) {
+        guard let controller = activeOverlayController else { return }
+        controller.show(on: screen, gridCells: viewLocalGridCells(for: screen))
+    }
+
+    /// Converts screen-absolute CG cells to view-local coords for the overlay.
+    /// The overlay window covers `screen.frame` (full screen including menu bar),
+    /// so view (0,0) is the top-left of that frame in CG coords.
+    private func viewLocalGridCells(for screen: NSScreen) -> [[CGRect]] {
         let fullFrameCG = screen.fullFrameCG
-        let viewLocalCells = gridCells.map { row in
+        return gridCells.map { row in
             row.map { cell in
                 CGRect(
                     x: cell.origin.x - fullFrameCG.origin.x,
@@ -279,12 +295,6 @@ final class DragCoordinator {
                 )
             }
         }
-        newController.show(on: screen, gridCells: viewLocalCells)
-
-        if let window = newController.overlayWindow {
-            overlayAnimator.fadeIn(window: window)
-        }
-        isOverlayVisible = true
     }
 
     private func hideOverlay() {
@@ -353,6 +363,12 @@ private final class SharedState: @unchecked Sendable {
     private var _isEnabled: Bool = true
     private var _mouseDownPos: CGPoint?
     private var _isDraggingWithoutShift: Bool = false
+    private var _currentLayoutVariant: LayoutVariant = .primary
+
+    var currentLayoutVariant: LayoutVariant {
+        get { lock.withLock { _currentLayoutVariant } }
+        set { lock.withLock { _currentLayoutVariant = newValue } }
+    }
 
     var lastTrackedWindow: TrackedWindow? {
         get { lock.withLock { _lastTrackedWindow } }
@@ -404,7 +420,8 @@ extension DragCoordinator: EventMonitorDelegate {
 
         // --- Case 1: Shift+mouseDown on title bar → start potential drag ---
         if event.kind == .mouseDown && event.shiftDown {
-            prepareWindowTracking(at: event.location)
+            let variant: LayoutVariant = event.optDown ? .secondary : .primary
+            prepareWindowTracking(at: event.location, variant: variant)
         }
 
         // --- Case 2: mouseDown without Shift → remember position for late-Shift ---
@@ -437,26 +454,55 @@ extension DragCoordinator: EventMonitorDelegate {
                 // the click was on a draggable chrome area, so skip the
                 // isTitleBar heuristic which is too strict for Finder toolbars,
                 // path bars, and other extended window chrome.
-                prepareWindowTracking(at: event.location, requireTitleBar: false)
+                let variant: LayoutVariant = event.optDown ? .secondary : .primary
+                prepareWindowTracking(at: event.location, requireTitleBar: false, variant: variant)
                 let syntheticDown = RawMouseEvent(
                     kind: .mouseDown, location: event.location,
-                    shiftDown: true, cmdDown: false, timestamp: event.timestamp
+                    shiftDown: true, cmdDown: false, optDown: event.optDown,
+                    timestamp: event.timestamp
                 )
                 stateMachine.process(event: syntheticDown)
                 let syntheticDrag = RawMouseEvent(
                     kind: .mouseDragged, location: event.location,
-                    shiftDown: true, cmdDown: false, timestamp: event.timestamp
+                    shiftDown: true, cmdDown: false, optDown: event.optDown,
+                    timestamp: event.timestamp
                 )
                 stateMachine.process(event: syntheticDrag)
                 // If Cmd is already held, trigger multi-cell immediately
                 if event.cmdDown {
                     let syntheticFlags = RawMouseEvent(
                         kind: .flagsChanged, location: event.location,
-                        shiftDown: true, cmdDown: true, timestamp: event.timestamp
+                        shiftDown: true, cmdDown: true, optDown: event.optDown,
+                        timestamp: event.timestamp
                     )
                     stateMachine.process(event: syntheticFlags)
                 }
                 return
+            }
+        }
+
+        // --- Case 4b: Opt toggle during shiftDragging → switch layout variant ---
+        //
+        // Dynamic layout switching: while the user is actively dragging in
+        // `.shiftDragging`, pressing or releasing Opt rebuilds the grid with
+        // the other variant and pushes new cells to the visible overlay.
+        // Ignored during `.multiCellSelecting` because the anchor cell was
+        // recorded in the old grid and would become meaningless after a
+        // layout change.
+        if event.kind == .flagsChanged && event.shiftDown {
+            if case .shiftDragging = currentState {
+                let newVariant: LayoutVariant = event.optDown ? .secondary : .primary
+                if newVariant != shared.currentLayoutVariant {
+                    shared.currentLayoutVariant = newVariant
+                    let cursorPoint = event.location
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self else { return }
+                        let screen = self.screenContaining(point: cursorPoint) ?? NSScreen.main
+                        guard let screen else { return }
+                        self.rebuildGrid(for: screen, variant: newVariant)
+                        self.pushGridToActiveOverlay(for: screen)
+                    }
+                }
             }
         }
 
@@ -491,8 +537,15 @@ extension DragCoordinator: EventMonitorDelegate {
     ///   (Shift pressed during an ongoing native drag) passes `false` because
     ///   the user has already committed to a window drag at the OS level and
     ///   the Shift press is an explicit opt-in to snap mode.
-    private nonisolated func prepareWindowTracking(at point: CGPoint, requireTitleBar: Bool = true) {
+    /// - Parameter variant: Layout slot to activate for this drag. Determined
+    ///   by the `optDown` flag of the triggering event at drag start.
+    private nonisolated func prepareWindowTracking(
+        at point: CGPoint,
+        requireTitleBar: Bool = true,
+        variant: LayoutVariant
+    ) {
         shared.lastTrackedWindow = nil
+        shared.currentLayoutVariant = variant
 
         guard let info = windowDetector.windowAtPoint(point) else { return }
         guard !info.isFullscreen else { return }
@@ -510,7 +563,7 @@ extension DragCoordinator: EventMonitorDelegate {
             guard let self else { return }
             let screen = self.screenContaining(point: cursorPoint) ?? NSScreen.main
             if let screen {
-                self.rebuildGrid(for: screen)
+                self.rebuildGrid(for: screen, variant: variant)
             }
         }
     }

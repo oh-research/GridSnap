@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// SVG gridsnap_icon.svg와 동일한 디자인의 SwiftUI 앱 아이콘 뷰
+/// SVG sniq_icon.svg와 동일한 디자인의 SwiftUI 앱 아이콘 뷰
 struct AppIconView: View {
     var body: some View {
         Canvas { context, size in

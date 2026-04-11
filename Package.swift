@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "GridSnap",
+    name: "Sniq",
     platforms: [.macOS(.v15)],
     targets: [
         .executableTarget(
-            name: "GridSnap",
+            name: "Sniq",
             path: "Sources"
         ),
     ]

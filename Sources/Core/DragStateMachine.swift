@@ -40,7 +40,7 @@ final class DragStateMachine: @unchecked Sendable {
     // MARK: - Properties
 
     private let queue = DispatchQueue(
-        label: "com.gridsnap.statemachine",
+        label: "com.sniq.statemachine",
         qos: .userInteractive
     )
 

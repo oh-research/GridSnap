@@ -1,20 +1,22 @@
-# GridSnap
+# Sniq
 
 <p align="center">
-  <img src="Resources/gridsnap_icon.svg" width="128" alt="GridSnap icon">
+  <img src="Resources/sniq_icon.svg" width="128" alt="Sniq icon">
 </p>
 
-> Shift + 드래그로 윈도우를 커스텀 그리드에 스냅하는 macOS 유틸리티
+> Shift + 드래그로 윈도우를 두 개의 커스텀 레이아웃에 스냅하는 macOS 유틸리티
 
-macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. GridSnap은 사용자가 정의한 그리드(2x2, 3x3, 4x3 등)에 맞춰 창을 자유롭게 배치합니다.
+macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. Sniq은 **두 개의 레이아웃을 미리 지정해두고 Shift / Shift+Opt 로 즉시 전환**하며 창을 자유롭게 배치합니다.
 
 ## 특징
 
-- **Shift + 제목줄 드래그** — 그리드 오버레이 표시, 놓으면 셀에 스냅
-- **Cmd 추가** — 여러 셀에 걸친 직사각형 영역으로 스냅
+- **두 레이아웃 즉시 전환** — Primary (Shift) · Secondary (Shift+Opt), 각각 독립 행·열 (1–10)
+- **Shift + 제목줄 드래그** — Primary 레이아웃 그리드 오버레이 표시, 놓으면 셀에 스냅
+- **Shift + Opt + 드래그** — Secondary 레이아웃으로 전환
+- **드래그 중 Opt 토글** — 레이아웃을 실시간으로 바꿔가며 비교 가능
+- **Cmd 추가** — 여러 셀에 걸친 직사각형 영역으로 스냅 (두 레이아웃 모두 동일 동작)
 - **다중 모니터 지원** — 각 화면에 독립 그리드 표시
 - **메뉴바 앱** — Dock 아이콘 없이 메뉴바에서만 동작
-- **그리드 프리셋** — 2x1, 3x1, 4x1 (1행) · 2x2, 2x3, 2x4 (2행) + 행/열 자유 설정 (1~10)
 - **다크/라이트 모드** 자동 대응
 - **로그인 시 자동 실행** 지원
 - 외부 의존성 없음 (순수 Swift + AppKit + SwiftUI)
@@ -25,26 +27,35 @@ macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. 
 
 ```bash
 brew tap oh-research/tap
-brew install --cask gridsnap
+brew install --cask sniq
 ```
 
 ### 수동 설치
 
-1. [Releases](https://github.com/oh-research/GridSnap/releases)에서 `.dmg` 다운로드
-2. `GridSnap.app`을 `/Applications`로 드래그
+1. [Releases](https://github.com/oh-research/Sniq/releases)에서 `.dmg` 다운로드
+2. `Sniq.app`을 `/Applications`로 드래그
 3. 최초 실행 전 Gatekeeper 우회:
    ```bash
-   xattr -cr /Applications/GridSnap.app
+   xattr -cr /Applications/Sniq.app
    ```
 4. 앱을 실행하면 **How to Use...** 창이 나타나 사용법과 권한 설정을 안내합니다
 
 ## 사용법
 
-### 단일 셀 스냅
+### Primary 레이아웃 (Shift)
 
 1. 창 제목줄을 드래그하면서 **Shift**를 누르세요
-2. 화면에 그리드 오버레이가 나타나고 커서 위치의 셀이 하이라이트됩니다
+2. Primary 레이아웃의 그리드 오버레이가 나타나고 커서 위치의 셀이 하이라이트됩니다
 3. 마우스를 놓으면 창이 해당 셀 크기/위치로 스냅됩니다
+
+### Secondary 레이아웃 (Shift + Opt)
+
+1. **Shift + Opt** 를 함께 누른 채 제목줄을 드래그하세요
+2. Secondary 레이아웃의 그리드 오버레이가 나타납니다
+3. 마우스를 놓으면 창이 Secondary 레이아웃의 셀로 스냅됩니다
+
+> 드래그 중에 **Opt** 만 눌렀다 뗐다 하면 Primary ↔ Secondary 가 실시간으로 전환됩니다.
+> (단, Cmd 로 다중 셀 선택 중에는 무시됩니다)
 
 ### 다중 셀 스냅
 
@@ -54,7 +65,7 @@ brew install --cask gridsnap
 
 ## 권한
 
-GridSnap은 두 가지 macOS 권한이 필요합니다:
+Sniq은 두 가지 macOS 권한이 필요합니다:
 
 - **손쉬운 사용(Accessibility)** — 창 이동/크기 조절에 필요
 - **입력 모니터링(Input Monitoring)** — Shift + 드래그 제스처 감지에 필요
@@ -68,24 +79,33 @@ GridSnap은 두 가지 macOS 권한이 필요합니다:
 - **Enabled** — Shift+드래그 감지 토글 (잠시 멈추고 싶을 때 해제)
 - **Settings...** — 행/열 수, 프리셋, 자동 실행 등 설정 창
 - **How to Use...** — 사용법과 권한 안내 창
-- **About GridSnap** — 버전·빌드 번호·개발자·GitHub 저장소 링크
-- **Quit GridSnap** — 종료 (⌘Q)
+- **About Sniq** — 버전·빌드 번호·개발자·GitHub 저장소 링크
+- **Quit Sniq** — 종료 (⌘Q)
 
 ## 설정
 
 메뉴바 아이콘 > **Settings...**에서 변경할 수 있습니다:
 
-- **행/열 수** (1~10)
-- **프리셋** — 2x1, 3x1, 4x1 (1행) · 2x2, 2x3, 2x4 (2행)
+- **Primary layout (Shift)** — 행·열 수 (1–10)
+- **Secondary layout (Shift + Opt)** — 행·열 수 (1–10)
 - **로그인 시 자동 실행**
+
+### 설정 예시
+
+| 사용 환경 | Primary | Secondary |
+|---|---|---|
+| 일반 노트북 | 2×1 (좌우 반반) | 2×2 (사분할) |
+| 울트라와이드 | 3×1 | 3×2 |
+| 세로 모니터 | 1×2 | 1×3 |
+| 개발 | 3×1 (코드·브라우저·터미널) | 2×2 |
 
 ## 소스에서 빌드
 
 macOS 15+ 및 Swift 6이 필요합니다.
 
 ```bash
-git clone https://github.com/oh-research/GridSnap.git
-cd GridSnap
+git clone https://github.com/oh-research/Sniq.git
+cd Sniq
 swift build
 swift run
 ```
@@ -99,13 +119,13 @@ swift run
 ### Homebrew
 
 ```bash
-brew uninstall --cask gridsnap
+brew uninstall --cask sniq
 ```
 
 ### 수동 삭제
 
 ```bash
-rm -rf /Applications/GridSnap.app
+rm -rf /Applications/Sniq.app
 ```
 
 ## 기술 스택

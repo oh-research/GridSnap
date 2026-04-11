@@ -1,7 +1,7 @@
 import Cocoa
 
 @main
-struct GridSnapApp {
+struct SniqApp {
     @MainActor
     static func main() {
         let app = NSApplication.shared

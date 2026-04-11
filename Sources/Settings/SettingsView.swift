@@ -5,74 +5,62 @@ struct SettingsView: View {
     @State private var launchAtLogin = LoginItemHelper.isEnabled
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("GridSnap Settings")
+        VStack(spacing: 16) {
+            Text("Sniq Settings")
                 .font(.headline)
 
-            // Grid size
-            GroupBox("Grid Size") {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Rows")
-                        Spacer()
-                        Stepper("\(prefs.rows)", value: $prefs.rows, in: 1...10)
-                    }
-                    HStack {
-                        Text("Columns")
-                        Spacer()
-                        Stepper("\(prefs.cols)", value: $prefs.cols, in: 1...10)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+            LayoutEditor(
+                title: "Primary layout (Shift)",
+                rows: $prefs.primaryRows,
+                cols: $prefs.primaryCols
+            )
 
-            // Presets
-            GroupBox("Presets") {
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        ForEach(GridConfiguration.presets.prefix(3), id: \.name) { preset in
-                            PresetButton(
-                                name: preset.name,
-                                isActive: prefs.rows == preset.config.rows
-                                    && prefs.cols == preset.config.cols
-                            ) {
-                                prefs.applyPreset(preset.config)
-                            }
-                        }
-                    }
-                    HStack(spacing: 8) {
-                        ForEach(GridConfiguration.presets.suffix(3), id: \.name) { preset in
-                            PresetButton(
-                                name: preset.name,
-                                isActive: prefs.rows == preset.config.rows
-                                    && prefs.cols == preset.config.cols
-                            ) {
-                                prefs.applyPreset(preset.config)
-                            }
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+            LayoutEditor(
+                title: "Secondary layout (Shift + Opt)",
+                rows: $prefs.secondaryRows,
+                cols: $prefs.secondaryCols
+            )
 
-            // Launch at login
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .font(.subheadline)
                 .onChange(of: launchAtLogin) {
                     LoginItemHelper.setEnabled(launchAtLogin)
                 }
-
-            // Preview
-            GroupBox("Preview") {
-                GridPreview(rows: prefs.rows, cols: prefs.cols)
-                    .frame(height: 120)
-                    .padding(.vertical, 4)
-            }
         }
         .padding(20)
         .frame(width: 320)
     }
 }
+
+// MARK: - Per-layout editor
+
+private struct LayoutEditor: View {
+    let title: String
+    @Binding var rows: Int
+    @Binding var cols: Int
+
+    var body: some View {
+        GroupBox(title) {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Rows")
+                    Spacer()
+                    Stepper("\(rows)", value: $rows, in: 1...10)
+                }
+                HStack {
+                    Text("Columns")
+                    Spacer()
+                    Stepper("\(cols)", value: $cols, in: 1...10)
+                }
+                GridPreview(rows: rows, cols: cols)
+                    .frame(height: 80)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+// MARK: - Preview widget
 
 struct GridPreview: View {
     let rows: Int
@@ -87,12 +75,10 @@ struct GridPreview: View {
             let offsetX = (geo.size.width - previewWidth) / 2
 
             ZStack {
-                // Background
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.secondary.opacity(0.1))
                     .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
 
-                // Grid lines
                 Canvas { context, size in
                     let cellW = size.width / CGFloat(cols)
                     let cellH = size.height / CGFloat(rows)
@@ -116,28 +102,5 @@ struct GridPreview: View {
             .frame(width: previewWidth, height: previewHeight)
             .offset(x: offsetX)
         }
-    }
-}
-
-struct PresetButton: View {
-    let name: String
-    let isActive: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(name)
-                .font(.subheadline.weight(isActive ? .semibold : .regular))
-                .foregroundStyle(isActive ? .white : .primary)
-                .frame(minWidth: 40)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isActive ? Color.accentColor : Color.secondary.opacity(0.12))
-                )
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
     }
 }

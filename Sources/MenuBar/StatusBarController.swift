@@ -29,7 +29,7 @@ final class StatusBarController: NSObject {
             let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
             button.image = NSImage(
                 systemSymbolName: "exclamationmark.triangle",
-                accessibilityDescription: "GridSnap Error"
+                accessibilityDescription: "Sniq Error"
             )?.withSymbolConfiguration(config)
         }
 
@@ -82,13 +82,13 @@ final class StatusBarController: NSObject {
         howToItem.target = self
         menu.addItem(howToItem)
 
-        let aboutItem = NSMenuItem(title: "About GridSnap", action: #selector(openAbout(_:)), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About Sniq", action: #selector(openAbout(_:)), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit GridSnap", action: #selector(quit(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Sniq", action: #selector(quit(_:)), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -113,7 +113,7 @@ final class StatusBarController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "GridSnap Settings"
+        window.title = "Sniq Settings"
         window.contentView = NSHostingView(rootView: SettingsView())
         window.center()
         window.isReleasedWhenClosed = false
@@ -141,7 +141,7 @@ final class StatusBarController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "About GridSnap"
+        window.title = "About Sniq"
         window.contentView = NSHostingView(rootView: AboutView())
         window.center()
         window.isReleasedWhenClosed = false
@@ -165,7 +165,7 @@ final class StatusBarController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "How to Use GridSnap"
+        window.title = "How to Use Sniq"
         window.contentView = NSHostingView(rootView: OnboardingView())
         window.center()
         window.isReleasedWhenClosed = false

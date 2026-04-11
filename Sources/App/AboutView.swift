@@ -9,7 +9,7 @@ struct AboutView: View {
             AppIconView()
                 .frame(width: 96, height: 96)
 
-            Text("GridSnap")
+            Text("Sniq")
                 .font(.title)
                 .fontWeight(.bold)
 
@@ -23,8 +23,8 @@ struct AboutView: View {
                     .foregroundStyle(.secondary)
 
                 Link(
-                    "github.com/oh-research/GridSnap",
-                    destination: URL(string: "https://github.com/oh-research/GridSnap")!
+                    "github.com/oh-research/Sniq",
+                    destination: URL(string: "https://github.com/oh-research/Sniq")!
                 )
                 .font(.caption)
             }
