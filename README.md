@@ -1,5 +1,7 @@
 # Sniq
 
+<p align="center"><strong>Snap your windows into place</strong> · 창을 딱 맞게 배치</p>
+
 <p align="center">
   <img src="Resources/sniq_icon.svg" width="128" alt="Sniq icon">
 </p>
@@ -103,12 +105,23 @@ Sniq은 두 가지 macOS 권한이 필요합니다:
 
 macOS 15+ 및 Swift 6이 필요합니다.
 
+빠른 개발 실행 (SPM):
+
 ```bash
 git clone https://github.com/oh-research/Sniq.git
-cd Sniq
-swift build
+cd Sniq/Sniq
 swift run
 ```
+
+릴리스 빌드 + DMG (xcodegen + xcodebuild, `brew install xcodegen` 필요):
+
+```bash
+./scripts/local-build.sh       # build/Sniq.app + build/sniq-X.Y.Z.dmg
+./scripts/local-install.sh     # /Applications 설치 + 실행
+./scripts/local-uninstall.sh   # 제거 (사용자 설정은 보존)
+```
+
+버전은 `Sniq/project.yml` 의 `MARKETING_VERSION` 한 곳에서 관리됩니다.
 
 ## 요구 사항
 
