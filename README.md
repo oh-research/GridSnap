@@ -13,10 +13,11 @@ macOS에 내장된 윈도우 스냅은 화면 절반 정도만 지원합니다. 
 ## 특징
 
 - **두 레이아웃 즉시 전환** — Primary (Shift) · Secondary (Shift+Ctrl), 각각 독립 행·열 (1–10)
-- **Shift + 제목줄 드래그** — Primary 레이아웃 그리드 오버레이 표시, 놓으면 셀에 스냅
+- **Shift + 창 어디든 드래그** — 타이틀바 / 바디 구분 없음. Primary 레이아웃 그리드 오버레이가 떠서 커서 위치의 셀이 하이라이트되고, 놓으면 스냅
 - **Shift + Ctrl + 드래그** — Secondary 레이아웃으로 전환
 - **드래그 중 Ctrl 토글** — 레이아웃을 실시간으로 바꿔가며 비교 가능
 - **Opt 추가** — 여러 셀에 걸친 직사각형 영역으로 스냅 (두 레이아웃 모두 동일 동작)
+- **Modifier 재바인딩** — 기본값 (Grip=⇧, Flip=⌃, Stretch=⌥) 이 불편하면 Settings 에서 ⇧/⌃/⌥/⌘ 조합으로 자유롭게 재지정 가능
 - **키보드 단축키 (opt-in)** — `Shift+Opt+화살표` 로 Primary, `Shift+Ctrl+Opt+화살표` 로 Secondary 레이아웃 인접 셀로 즉시 이동. 텍스트 편집 중에는 자동 우회
 - **다중 모니터 지원** — 각 화면에 독립 그리드 표시
 - **메뉴바 앱** — Dock 아이콘 없이 메뉴바에서만 동작
@@ -47,13 +48,15 @@ brew install --cask sniq
 
 ### Primary 레이아웃 (Shift)
 
-1. 창 제목줄을 드래그하면서 **Shift**를 누르세요
+1. 창 **어디든** 드래그하면서 **Shift**를 누르세요 (타이틀바 아니어도 됩니다)
 2. Primary 레이아웃의 그리드 오버레이가 나타나고 커서 위치의 셀이 하이라이트됩니다
 3. 마우스를 놓으면 창이 해당 셀 크기/위치로 스냅됩니다
 
+> 트레이드오프: 창 위에서 Shift+click 으로 선택을 확장하는 앱(Finder, 에디터 등)의 동작은 Sniq 이 먼저 가로챕니다. Shift 선택 확장을 자주 쓰신다면 Settings 에서 Grip 을 다른 키로 재바인딩하세요.
+
 ### Secondary 레이아웃 (Shift + Ctrl)
 
-1. **Shift + Ctrl** 를 함께 누른 채 제목줄을 드래그하세요
+1. **Shift + Ctrl** 를 함께 누른 채 창 어디든 드래그하세요
 2. Secondary 레이아웃의 그리드 오버레이가 나타납니다
 3. 마우스를 놓으면 창이 Secondary 레이아웃의 셀로 스냅됩니다
 
@@ -96,12 +99,16 @@ Sniq은 두 가지 macOS 권한이 필요합니다:
 
 ## 설정
 
-메뉴바 아이콘 > **Settings...**에서 변경할 수 있습니다:
+메뉴바 아이콘 > **Settings...**에서 변경할 수 있습니다. Settings 창은 메뉴바 아이콘 바로 아래에 열립니다. 라벨은 현재 바인딩에 따라 자동으로 갱신됩니다.
 
-- **Primary layout (Shift)** — 행·열 수 (1–10)
-- **Secondary layout (Shift + Ctrl)** — 행·열 수 (1–10)
-- **Keyboard shortcuts (Shift + Opt + Arrow)** — 기본 OFF
-- **로그인 시 자동 실행**
+- **Primary layout (Grip)** — 행·열 수 (1–10) + 미리보기
+- **Secondary layout (Grip + Flip)** — 행·열 수 (1–10) + 미리보기
+- **Modifier bindings** — Grip / Flip / Stretch 세 역할에 ⇧/⌃/⌥/⌘ 중 하나를 할당. 유효성 검사 실시간 표시, Reset to defaults 버튼 제공
+- **Keyboard shortcut** 토글 (기본 OFF) — 활성 시 Grip+Stretch+Arrow 조합 수신
+- **Intercept in text fields** — 텍스트 편집 중에도 키보드 단축키 가로채기 (기본 OFF, 에디터에서 단어 선택을 유지하려면 OFF 권장)
+- **Launch at login** — 로그인 시 자동 실행
+
+> `fn` 은 바인딩 불가능합니다. macOS 가 화살표 키 입력에 fn 플래그를 자동으로 포함시키기 때문에, 어떤 역할에 할당하든 매칭이 너무 느슨해집니다.
 
 ### 설정 예시
 
@@ -156,8 +163,8 @@ rm -rf /Applications/Sniq.app
 
 - **Swift 6 + AppKit** — 이벤트 감지, 오버레이, 창 조작
 - **SwiftUI** — Settings, How to Use, About 창
-- **CGEventTap** (passive) — 마우스/modifier 이벤트 수신
-- **AXUIElement** — 커서 아래 창 획득 및 크기/위치 변경
+- **CGEventTap** (active) — 마우스/modifier/keyDown 이벤트 수신. Grip 홀드 중 mouseDown 만 suppress 하여 OS 네이티브 드래그/선택을 가로채지 않고 창 어디든 스냅을 활성화
+- **AXUIElement** — 커서 아래 창 획득 및 크기/위치 변경. Electron 앱 (VS Code 등) 은 system-wide AX 쿼리 대신 pid 기반 fallback 경로 사용
 - **SPM** — 패키지 관리
 
 ## 라이선스

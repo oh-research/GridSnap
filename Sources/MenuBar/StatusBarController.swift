@@ -107,7 +107,7 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let window = NSWindow(
+        let window = ShortcutWindow(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 400),
             styleMask: [.titled, .closable],
             backing: .buffered,
@@ -115,13 +115,40 @@ final class StatusBarController: NSObject {
         )
         window.title = "Sniq Settings"
         window.contentView = NSHostingView(rootView: SettingsView())
-        window.center()
+        positionBelowStatusItem(window)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow = window
+    }
+
+    /// Places `window` just below the status-bar icon, right-aligned to
+    /// it, so Settings opens next to the trigger instead of at screen
+    /// center (minimizes cursor travel from the menu bar). Falls back
+    /// to `center()` when the status item's window is unavailable.
+    private func positionBelowStatusItem(_ window: NSWindow) {
+        guard let button = statusItem.button,
+              let buttonWindow = button.window
+        else {
+            window.center()
+            return
+        }
+        let buttonFrame = buttonWindow.convertToScreen(
+            button.convert(button.bounds, to: nil)
+        )
+        let screenFrame = buttonWindow.screen?.visibleFrame ?? .zero
+        let gap: CGFloat = 6
+        let w = window.frame.width
+        let h = window.frame.height
+        // Align right edge of window with right edge of button.
+        let x = max(
+            screenFrame.minX + 8,
+            min(buttonFrame.maxX - w, screenFrame.maxX - w - 8)
+        )
+        let y = buttonFrame.minY - h - gap
+        window.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
     @objc private func openOnboarding(_ sender: Any?) {
@@ -135,7 +162,7 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let window = NSWindow(
+        let window = ShortcutWindow(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 340),
             styleMask: [.titled, .closable],
             backing: .buffered,
@@ -159,7 +186,7 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let window = NSWindow(
+        let window = ShortcutWindow(
             contentRect: NSRect(x: 0, y: 0, width: 380, height: 500),
             styleMask: [.titled, .closable],
             backing: .buffered,

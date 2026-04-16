@@ -6,32 +6,72 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Sniq Settings")
-                .font(.headline)
-
             LayoutEditor(
-                title: "Primary layout (Shift)",
+                title: "Primary layout (\(prefs.bindings.grip.formatted))",
                 rows: $prefs.primaryRows,
                 cols: $prefs.primaryCols
             )
 
             LayoutEditor(
-                title: "Secondary layout (Shift + Ctrl)",
+                title: "Secondary layout (\(prefs.bindings.grip.formatted) + \(prefs.bindings.flip.formatted))",
                 rows: $prefs.secondaryRows,
                 cols: $prefs.secondaryCols
             )
 
-            Toggle("Keyboard shortcuts (Shift + Opt + Arrow)", isOn: $prefs.keyboardSnapEnabled)
-                .font(.subheadline)
+            GroupBox("Modifier bindings") {
+                ModifierBindingView()
+            }
 
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .font(.subheadline)
+            HStack(spacing: 8) {
+                ToggleTile(
+                    title: "Keyboard\nshortcut",
+                    isOn: $prefs.keyboardSnapEnabled
+                )
+                ToggleTile(
+                    title: "Intercept\nin text fields",
+                    isOn: $prefs.interceptInTextFields,
+                    enabled: prefs.keyboardSnapEnabled
+                )
+                ToggleTile(
+                    title: "Launch\nat login",
+                    isOn: $launchAtLogin
+                )
                 .onChange(of: launchAtLogin) {
                     LoginItemHelper.setEnabled(launchAtLogin)
                 }
+            }
         }
         .padding(20)
-        .frame(width: 320)
+        .frame(width: 340)
+    }
+}
+
+// MARK: - Toggle tile
+
+/// Tall two-line toggle button used by the Settings footer row.
+/// Active state is signalled by a blue border overlay rather than a
+/// filled background — easier on the eyes than solid accent fill.
+private struct ToggleTile: View {
+    let title: String
+    @Binding var isOn: Bool
+    var enabled: Bool = true
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+        } label: {
+            Text(title)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.bordered)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isOn ? Color.accentColor : Color.clear, lineWidth: 2)
+        )
+        .disabled(!enabled)
     }
 }
 
@@ -43,7 +83,7 @@ private struct LayoutEditor: View {
     @Binding var cols: Int
 
     var body: some View {
-        GroupBox(title) {
+        GroupBox {
             VStack(spacing: 10) {
                 HStack {
                     Text("Rows")
@@ -59,6 +99,8 @@ private struct LayoutEditor: View {
                     .frame(height: 80)
             }
             .padding(.vertical, 4)
+        } label: {
+            Text(verbatim: title)
         }
     }
 }

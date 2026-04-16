@@ -15,7 +15,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HowToRow(
                         icon: "arrow.up.and.down.and.arrow.left.and.right",
-                        text: "Hold Shift and drag a window title bar"
+                        text: "Hold Shift and drag anywhere on a window"
                     )
                     HowToRow(
                         icon: "grid",
@@ -35,7 +35,7 @@ struct OnboardingView: View {
                     )
                     HowToRow(
                         icon: "escape",
-                        text: "Release Shift or press Escape to cancel"
+                        text: "Release Shift to cancel"
                     )
                 }
                 .padding(.vertical, 4)

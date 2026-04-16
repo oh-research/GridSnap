@@ -45,6 +45,13 @@ final class OverlayWindowController {
         overlayView?.highlightedCells = [cell]
     }
 
+    /// Highlights an arbitrary set of cells (not necessarily contiguous).
+    /// Used by disambiguation to show all candidate cells when the
+    /// keyboard snap can't pick one deterministically.
+    func updateHighlight(cells set: Set<GridCell>) {
+        overlayView?.highlightedCells = set
+    }
+
     /// Highlights all cells in the rectangle spanned by `from` and `to`.
     func updateHighlight(region from: GridCell, to: GridCell) {
         guard let cells = overlayView?.gridCells,
@@ -82,6 +89,9 @@ final class OverlayWindowController {
         window.ignoresMouseEvents = true
         window.level             = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        // Suppress the default orderFront fade-in so the snap preview
+        // appears the instant the drag crosses the 5 pt threshold.
+        window.animationBehavior = .none
         return window
     }
 }

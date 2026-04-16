@@ -17,7 +17,8 @@ struct GridConfiguration: Equatable, Sendable {
 }
 
 /// Identifies which of the two configurable layouts is currently active.
-/// `.primary` corresponds to Shift-drag, `.secondary` to Shift+Opt-drag.
+/// `.primary` is the default layout; `.secondary` is activated by the
+/// `Flip` modifier (Ctrl by default) on keyboard shortcuts.
 enum LayoutVariant: Sendable {
     case primary
     case secondary
@@ -30,14 +31,4 @@ struct TrackedWindow: @unchecked Sendable {
     let axElement: AXUIElement
     let pid: pid_t
     let originalFrame: CGRect
-}
-
-// MARK: - Drag State
-
-enum DragState: Sendable {
-    case idle
-    case potentialDrag(mouseDownPos: CGPoint, windowID: CGWindowID, pid: pid_t)
-    case shiftDragging(trackedWindow: TrackedWindow, currentCell: GridCell?)
-    case multiCellSelecting(trackedWindow: TrackedWindow, anchorCell: GridCell, currentCell: GridCell?)
-    case snapping(trackedWindow: TrackedWindow, targetRect: CGRect)
 }

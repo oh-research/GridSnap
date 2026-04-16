@@ -33,16 +33,22 @@ final class GridOverlayView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = .clear
+        configureLayer()
         updateColors()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        configureLayer()
+        updateColors()
+    }
+
+    /// Disables Core Animation implicit animations on the backing layer so
+    /// highlight transitions between cells are instant (no content cross-fade).
+    private func configureLayer() {
         wantsLayer = true
         layer?.backgroundColor = .clear
-        updateColors()
+        layer?.actions = [:]
     }
 
     // MARK: - Appearance

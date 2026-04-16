@@ -12,24 +12,17 @@ struct RawMouseEvent: Sendable {
 
     let kind: Kind
     let location: CGPoint
-    let shiftDown: Bool
-    let ctrlDown: Bool
-    let optDown: Bool
+    let modifiers: PressedModifiers
     let timestamp: UInt64
-}
-
-// MARK: - EventMonitorDelegate
-
-protocol EventMonitorDelegate: AnyObject, Sendable {
-    func eventMonitor(_ monitor: EventMonitor, didReceive event: RawMouseEvent)
 }
 
 // MARK: - EventMonitor
 
-/// Installs a CGEventTap (passive first, active fallback) and dispatches
-/// lightweight RawMouseEvent structs to a delegate on a serial queue.
-/// The CGEventTap callback itself extracts only coordinates and flags so
-/// that it stays well under the 1 ms budget.
+/// Installs a CGEventTap and routes events to two synchronous handlers:
+/// `keyboardHandler` for keyDown events and `mouseHandler` for mouse
+/// events. Each handler returns `true` to claim (suppress) the event or
+/// `false` to pass it through. The tap callback itself extracts only
+/// coordinates and flags so it stays well under the 1 ms budget.
 final class EventMonitor: @unchecked Sendable {
 
     // MARK: State
@@ -38,19 +31,17 @@ final class EventMonitor: @unchecked Sendable {
     private var runLoopSource: CFRunLoopSource?
     private var isRunning = false
 
-    /// Serial queue for delegate callbacks; intentionally off the main thread.
-    let eventQueue: DispatchQueue = DispatchQueue(
-        label: "com.sniq.eventmonitor",
-        qos: .userInteractive
-    )
-
-    weak var delegate: (any EventMonitorDelegate)?
-
     /// Synchronous keyboard handler invoked from the CGEventTap callback
     /// thread. Return `true` to suppress the event (Sniq claims it); return
     /// `false` to pass it through to the system. Must return within the tap
-    /// budget (~1 ms). Parameters: `(keyCode, shift, ctrl, opt)`.
-    var keyboardHandler: (@Sendable (Int64, Bool, Bool, Bool) -> Bool)?
+    /// budget (~1 ms). Parameters: `(keyCode, pressedModifiers)`.
+    var keyboardHandler: (@Sendable (Int64, PressedModifiers) -> Bool)?
+
+    /// Synchronous mouse interceptor invoked from the CGEventTap callback
+    /// thread. Return `true` to claim the event — the OS will not see it.
+    /// Used by the Grip-drag coordinator to suppress mouse events while
+    /// Grip is held. Must return within the tap budget (~1 ms).
+    var mouseHandler: (@Sendable (RawMouseEvent) -> Bool)?
 
     /// Called on the main queue when the event tap cannot be created.
     var onTapCreationFailure: (@Sendable () -> Void)?
@@ -143,12 +134,7 @@ final class EventMonitor: @unchecked Sendable {
                 return Unmanaged.passUnretained(event)
             }
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-            let shouldSuppress = handler(
-                keyCode,
-                flags.contains(.maskShift),
-                flags.contains(.maskControl),
-                flags.contains(.maskAlternate)
-            )
+            let shouldSuppress = handler(keyCode, PressedModifiers(cgFlags: flags))
             return shouldSuppress ? nil : Unmanaged.passUnretained(event)
         }
 
@@ -165,17 +151,13 @@ final class EventMonitor: @unchecked Sendable {
         let raw = RawMouseEvent(
             kind: kind,
             location: location,
-            shiftDown: flags.contains(.maskShift),
-            ctrlDown: flags.contains(.maskControl),
-            optDown: flags.contains(.maskAlternate),
+            modifiers: PressedModifiers(cgFlags: flags),
             timestamp: ts
         )
 
-        // Dispatch off the callback — no captures that would slow the hot path.
-        monitor.eventQueue.async {
-            monitor.delegate?.eventMonitor(monitor, didReceive: raw)
+        if let mouseHandler = monitor.mouseHandler, mouseHandler(raw) {
+            return nil
         }
-
         return Unmanaged.passUnretained(event)
     }
 }

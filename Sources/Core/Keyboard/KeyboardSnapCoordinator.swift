@@ -1,47 +1,63 @@
 @preconcurrency import Cocoa
 
-/// Handles `Shift+Opt+Arrow` (Primary) and `Shift+Ctrl+Opt+Arrow` (Secondary)
-/// keyboard shortcuts by moving the focused window to the adjacent grid cell
-/// in the requested direction. Entirely independent from the drag pipeline;
-/// shares layout configuration via `PreferencesStore` and snap math via
-/// `GridCalculator` / `SnapResolver` / `WindowManipulator`.
+/// Handles the `Shift+Opt+Arrow` (primary-layout) keyboard shortcut by
+/// moving the focused window to the adjacent grid cell in the requested
+/// direction. Secondary-layout and disambiguation features were removed
+/// after proving too complex to stabilize across multi-monitor and
+/// rapid-fire scenarios — the basic primary navigation is kept simple
+/// and reliable.
 ///
-/// Wiring: `DragCoordinator.start()` calls `wire(to:)` so the coordinator
-/// installs a synchronous keyboard handler on the existing `EventMonitor`
-/// tap. The handler decides suppression (event tap budget ~1 ms) and
-/// schedules the actual snap on the main actor.
+/// Lifecycle: `DragCoordinator.start()` calls `wire(to:)`, which installs
+/// the keyboard handler on the shared `EventMonitor` and starts
+/// `TextFocusMonitor` / `FocusedWindowCache`. `DragCoordinator.stop()`
+/// calls `unwire(from:)` to tear those down symmetrically.
 final class KeyboardSnapCoordinator: @unchecked Sendable {
 
     static let shared = KeyboardSnapCoordinator()
 
     private init() {}
 
+    @MainActor private let gridCache = GridCellsCache()
+
     // MARK: - Wiring
 
-    /// Installs the synchronous keyboard handler on the event monitor.
-    /// The handler is invoked on the CGEventTap thread and must return
-    /// within the tap budget.
     func wire(to monitor: EventMonitor) {
-        monitor.keyboardHandler = { [weak self] keyCode, shift, ctrl, opt in
+        TextFocusMonitor.shared.start()
+        FocusedWindowCache.shared.start()
+        monitor.keyboardHandler = { [weak self] keyCode, modifiers in
             guard let self else { return false }
-            return self.shouldSuppress(keyCode: keyCode, shift: shift, ctrl: ctrl, opt: opt)
+            return self.shouldSuppress(keyCode: keyCode, modifiers: modifiers)
         }
+    }
+
+    @MainActor
+    func unwire(from monitor: EventMonitor) {
+        monitor.keyboardHandler = nil
+        FocusedWindowCache.shared.stop()
+        TextFocusMonitor.shared.stop()
+        gridCache.clear()
     }
 
     // MARK: - Sync entry (CGEventTap callback thread)
 
     /// Returns `true` if the event was claimed by Sniq (suppress it);
-    /// `false` to pass it through to the system (text editing, feature off,
-    /// non-Sniq shortcut).
-    private func shouldSuppress(keyCode: Int64, shift: Bool, ctrl: Bool, opt: Bool) -> Bool {
+    /// `false` to pass it through to the system.
+    private func shouldSuppress(keyCode: Int64, modifiers: PressedModifiers) -> Bool {
         guard let direction = Direction(keyCode: keyCode) else { return false }
-        guard shift && opt else { return false }
         guard isEnabled else { return false }
-        if FocusedWindowDetector.isTextElementFocused() { return false }
+        let bindings = ModifierBindings.load()
+        // Only the primary variant is bound to a keyboard shortcut. The
+        // secondary variant is reachable via drag snap (different flow).
+        guard let variant = bindings.keyboardVariant(pressed: modifiers),
+              variant == .primary
+        else { return false }
+        if !interceptInTextFields && TextFocusMonitor.shared.isTextFocused {
+            return false
+        }
+        guard let window = FocusedWindowCache.shared.focusedWindow else { return false }
 
-        let useSecondary = ctrl
-        DispatchQueue.main.async { [weak self] in
-            self?.performSnap(direction: direction, useSecondary: useSecondary)
+        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+            self?.performSnap(window: window, direction: direction)
         }
         return true
     }
@@ -49,48 +65,42 @@ final class KeyboardSnapCoordinator: @unchecked Sendable {
     // MARK: - Snap execution (main actor)
 
     @MainActor
-    private func performSnap(direction: Direction, useSecondary: Bool) {
-        guard let window = FocusedWindowDetector.focusedWindow() else { return }
-        guard let currentFrame = FocusedWindowDetector.frame(of: window) else { return }
+    private func performSnap(window: AXUIElement, direction: Direction) {
+        guard let currentFrame = FocusedWindowDetector.frame(of: window) else {
+            // Window was closed between key press and execution — drop
+            // stale cache so the next press fetches fresh.
+            FocusedWindowCache.shared.invalidate()
+            return
+        }
         guard let screen = FocusedWindowDetector.screen(containing: currentFrame) else { return }
 
-        let variant: LayoutVariant = useSecondary ? .secondary : .primary
-        let config = PreferencesStore.shared.configuration(for: variant)
-        let cells = GridCalculator.cells(for: screen.visibleFrameCG, configuration: config)
+        let config = PreferencesStore.shared.configuration(for: .primary)
+        let cells = gridCache.cells(for: screen, variant: .primary, config: config)
 
         let resolver = SnapResolver(cells: cells)
         let center = CGPoint(x: currentFrame.midX, y: currentFrame.midY)
         guard let currentCell = resolver.cell(at: center) else { return }
 
-        guard let nextCell = Self.adjacentCell(
-            from: currentCell,
-            direction: direction,
-            rows: config.rows,
-            cols: config.cols
-        ) else { return }  // Boundary → no-op
+        // On boundary (no adjacent cell in the requested direction), fall
+        // back to the current cell so the window re-fits exactly when the
+        // layout config has changed.
+        let targetCell = direction.adjacent(
+            from: currentCell, rows: config.rows, cols: config.cols
+        ) ?? currentCell
 
-        let targetRect = cells[nextCell.row][nextCell.col]
+        let targetRect = cells[targetCell.row][targetCell.col]
+        if Self.framesApproximatelyEqual(currentFrame, targetRect) { return }
         WindowManipulator.shared.setFrame(targetRect, for: window)
     }
 
-    // MARK: - Pure helpers
-
-    private static func adjacentCell(
-        from cell: GridCell,
-        direction: Direction,
-        rows: Int,
-        cols: Int
-    ) -> GridCell? {
-        var newRow = cell.row
-        var newCol = cell.col
-        switch direction {
-        case .up:    newRow -= 1
-        case .down:  newRow += 1
-        case .left:  newCol -= 1
-        case .right: newCol += 1
-        }
-        guard newRow >= 0, newRow < rows, newCol >= 0, newCol < cols else { return nil }
-        return GridCell(row: newRow, col: newCol)
+    /// Two frames are considered identical if every component is within
+    /// 1 pt. Grid cells are integer-pixel, so anything larger than this
+    /// tolerance reflects a real layout mismatch worth re-snapping.
+    private static func framesApproximatelyEqual(_ a: CGRect, _ b: CGRect) -> Bool {
+        abs(a.origin.x - b.origin.x) <= 1 &&
+        abs(a.origin.y - b.origin.y) <= 1 &&
+        abs(a.size.width - b.size.width) <= 1 &&
+        abs(a.size.height - b.size.height) <= 1
     }
 
     // MARK: - Feature flag
@@ -100,23 +110,12 @@ final class KeyboardSnapCoordinator: @unchecked Sendable {
     private var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: "keyboardSnapEnabled")
     }
-}
 
-// MARK: - Direction
-
-extension KeyboardSnapCoordinator {
-    enum Direction {
-        case up, down, left, right
-
-        /// macOS arrow key virtual keycodes.
-        init?(keyCode: Int64) {
-            switch keyCode {
-            case 123: self = .left
-            case 124: self = .right
-            case 125: self = .down
-            case 126: self = .up
-            default:  return nil
-            }
-        }
+    /// When `true`, keyboard shortcuts fire even when a text field has
+    /// focus (overriding macOS's native word-selection on Shift+Opt+Arrow).
+    /// Defaults to `false`. `UserDefaults.bool` returns `false` for unset
+    /// keys which matches the intended default.
+    private var interceptInTextFields: Bool {
+        UserDefaults.standard.bool(forKey: "keyboardSnapInterceptInTextFields")
     }
 }

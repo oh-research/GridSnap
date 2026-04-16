@@ -13,6 +13,11 @@ final class PreferencesStore: ObservableObject {
     @AppStorage("onboardingCompleted") var onboardingCompleted: Bool = false
     @AppStorage("isEnabled") var isEnabled: Bool = true
     @AppStorage("keyboardSnapEnabled") var keyboardSnapEnabled: Bool = false
+    @AppStorage("keyboardSnapInterceptInTextFields") var interceptInTextFields: Bool = false
+
+    /// Role-to-modifier bindings. Readable directly by SwiftUI so labels
+    /// update immediately when `updateBindings(_:)` writes new values.
+    @Published private(set) var bindings: ModifierBindings = .load()
 
     /// Mirrors the SMAppService login item state. Setting this registers/unregisters the app.
     var launchAtLogin: Bool {
@@ -22,6 +27,15 @@ final class PreferencesStore: ObservableObject {
 
     private init() {
         Self.migrateLegacyGridKeysIfNeeded()
+    }
+
+    /// Persists new bindings to UserDefaults and publishes the change so
+    /// SwiftUI observers (Settings labels) rebuild. Coordinators on the
+    /// event-tap thread re-read via `ModifierBindings.load()` on each
+    /// event, so they pick up the new binding without observing here.
+    func updateBindings(_ new: ModifierBindings) {
+        new.save()
+        bindings = new
     }
 
     /// Returns the grid configuration for the given variant. `gap` and
