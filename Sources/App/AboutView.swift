@@ -1,12 +1,13 @@
+import AppKit
 import SwiftUI
 
-/// About window contents. Shows the app icon, name, version + build, author,
-/// and a link to the source repository. Mirrors the visual style of the
-/// "How to Use..." window so users see a consistent two-window pattern.
+/// About window contents. Shows the app icon, name, version + build,
+/// author, and a link to the source repository.
 struct AboutView: View {
     var body: some View {
         VStack(spacing: 18) {
-            AppIconView()
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
                 .frame(width: 96, height: 96)
 
             Text("Sniq")

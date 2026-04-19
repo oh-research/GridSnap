@@ -1,16 +1,16 @@
+import AppKit
 import SwiftUI
 
 struct OnboardingView: View {
     @ObservedObject private var accessibility = AccessibilityManager.shared
-    @ObservedObject private var prefs = PreferencesStore.shared
+    @ObservedObject private var preferences = PreferencesStore.shared
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             Text("How to Use Sniq")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            // How to use
             GroupBox("How to use") {
                 VStack(alignment: .leading, spacing: 10) {
                     HowToRow(
@@ -41,90 +41,57 @@ struct OnboardingView: View {
                 .padding(.vertical, 4)
             }
 
-            // Permissions
-            GroupBox("Permissions") {
-                VStack(spacing: 12) {
-                    // Accessibility
-                    PermissionRow(
-                        granted: accessibility.isTrusted,
-                        title: "Accessibility",
-                        description: "Required to move and resize windows",
-                        action: { accessibility.requestPermission() }
-                    )
+            OnboardingProgressView(steps: [
+                .init(title: "Accessibility", completed: accessibility.isTrusted),
+                .init(title: "Input Monitoring", completed: accessibility.canListenEvents)
+            ])
+            .padding(.horizontal, 12)
 
-                    Divider()
-
-                    // Input Monitoring
-                    PermissionRow(
-                        granted: accessibility.canListenEvents,
-                        title: "Input Monitoring",
-                        description: "Required to detect Shift + drag gestures",
-                        action: { accessibility.openInputMonitoringSettings() }
-                    )
-                }
-                .padding(.vertical, 4)
+            VStack(spacing: 10) {
+                PermissionCardView(
+                    icon: "accessibility",
+                    title: "Accessibility",
+                    description: "Required to move and resize windows",
+                    granted: accessibility.isTrusted,
+                    primaryAction: { accessibility.requestPermission() },
+                    fallbackAction: { accessibility.openAccessibilitySettings() }
+                )
+                PermissionCardView(
+                    icon: "keyboard",
+                    title: "Input Monitoring",
+                    description: "Required to detect Shift + drag gestures",
+                    granted: accessibility.canListenEvents,
+                    primaryAction: { accessibility.openInputMonitoringSettings() },
+                    fallbackAction: nil
+                )
             }
 
-            // Done
-            Button(prefs.onboardingCompleted ? "Close" : "Get Started") {
-                prefs.onboardingCompleted = true
-                NSApp.keyWindow?.close()
+            if preferences.onboardingCompleted {
+                Button("Close") { completeOnboarding() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Get Started") { completeOnboarding() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!accessibility.allPermissionsGranted)
+                    .keyboardShortcut(.defaultAction)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!accessibility.allPermissionsGranted)
         }
         .padding(24)
-        .frame(width: 380)
+        .frame(width: 440)
         .onAppear {
             accessibility.checkPermission()
             accessibility.startPolling()
         }
-    }
-}
-
-struct PermissionRow: View {
-    let granted: Bool
-    let title: String
-    let description: String
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: granted ? "checkmark.shield.fill" : "shield.lefthalf.filled")
-                .font(.title2)
-                .foregroundStyle(granted ? .green : .orange)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.bold())
-                Text(granted ? "Permission granted" : description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            if !granted {
-                Button("Grant Access") { action() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-            }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            accessibility.checkPermission()
         }
     }
-}
 
-struct HowToRow: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .frame(width: 24)
-                .foregroundStyle(.blue)
-            Text(text)
-                .font(.subheadline)
-        }
+    private func completeOnboarding() {
+        preferences.onboardingCompleted = true
+        NSApp.keyWindow?.close()
     }
 }
