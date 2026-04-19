@@ -19,7 +19,7 @@ final class DragCoordinator {
 
     func start() {
         observeAccessibility()
-        KeyboardSnapCoordinator.shared.wire(to: eventMonitor)
+        CustomSnapCoordinator.shared.wire(to: eventMonitor)
         GripDragCoordinator.shared.wire(to: eventMonitor)
         eventMonitor.onTapCreationFailure = { [weak self] in
             Task { @MainActor [weak self] in
@@ -33,7 +33,7 @@ final class DragCoordinator {
 
     func stop() {
         GripDragCoordinator.shared.unwire(from: eventMonitor)
-        KeyboardSnapCoordinator.shared.unwire(from: eventMonitor)
+        CustomSnapCoordinator.shared.unwire(from: eventMonitor)
         eventMonitor.stop()
         cancellables.removeAll()
     }

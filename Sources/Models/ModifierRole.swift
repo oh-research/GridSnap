@@ -52,7 +52,7 @@ enum ModifierKey: String, CaseIterable, Codable, Sendable {
 /// (CGEventTap callback, keyboard snap coordinator) where Set allocation
 /// per event would be wasteful. Bridges to `Set<ModifierKey>` at the UI
 /// boundary via `asSet` / `init(_:)`.
-struct PressedModifiers: OptionSet, Sendable, Hashable {
+struct PressedModifiers: OptionSet, Sendable, Hashable, Codable {
     let rawValue: UInt8
 
     static let shift    = PressedModifiers(rawValue: 1 << 0)
@@ -71,6 +71,18 @@ struct PressedModifiers: OptionSet, Sendable, Hashable {
         if cgFlags.contains(.maskAlternate)   { set.insert(.option) }
         if cgFlags.contains(.maskCommand)     { set.insert(.command) }
         if cgFlags.contains(.maskSecondaryFn) { set.insert(.function) }
+        self = set
+    }
+
+    /// Reads modifier state from an `NSEvent.ModifierFlags` value, as
+    /// produced by AppKit event monitors used by the shortcut recorder.
+    init(nsFlags: NSEvent.ModifierFlags) {
+        var set: PressedModifiers = []
+        if nsFlags.contains(.shift)    { set.insert(.shift) }
+        if nsFlags.contains(.control)  { set.insert(.control) }
+        if nsFlags.contains(.option)   { set.insert(.option) }
+        if nsFlags.contains(.command)  { set.insert(.command) }
+        if nsFlags.contains(.function) { set.insert(.function) }
         self = set
     }
 

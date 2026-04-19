@@ -19,6 +19,7 @@ final class GripDragCoordinator {
     )
 
     private let overlay = GripDragOverlayHost()
+    private let flashIndicator = WindowFlashIndicator()
 
     private init() {}
 
@@ -60,7 +61,7 @@ final class GripDragCoordinator {
         // Reject non-role modifiers so Shift+Cmd+click etc. pass through.
         let known = grip.union(bindings.flip).union(bindings.stretch)
         guard event.modifiers.isSubset(of: known) else { return false }
-        guard Self.cursorOnWindow(at: event.location) else { return false }
+        guard CursorWindowProbe.hasWindow(at: event.location) else { return false }
 
         let variant: LayoutVariant = bindings.flip.isSubset(of: event.modifiers) ? .secondary : .primary
         stateLock.withLock { $0 = .armed(downPos: event.location, tracked: nil, variant: variant) }
@@ -152,27 +153,6 @@ final class GripDragCoordinator {
         }
     }
 
-    /// Fast CG-only check for whether there's a layer-0 window at `point`.
-    /// Excludes desktop, menubar, and Dock so Opt+click on those regions
-    /// passes through to the OS untouched.
-    private nonisolated static func cursorOnWindow(at point: CGPoint) -> Bool {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
-        else { return false }
-        for entry in list {
-            guard
-                let layer = entry[kCGWindowLayer as String] as? Int, layer == 0,
-                let bounds = entry[kCGWindowBounds as String] as? [String: CGFloat],
-                let x = bounds["X"], let y = bounds["Y"],
-                let w = bounds["Width"], let h = bounds["Height"]
-            else { continue }
-            if CGRect(x: x, y: y, width: w, height: h).contains(point) {
-                return true
-            }
-        }
-        return false
-    }
-
     /// Resolves the AX window element on a background queue so the tap
     /// callback keeps its 1 ms budget. On success, promotes the armed
     /// state's `tracked` slot; on failure, unwinds state back to idle.
@@ -204,6 +184,7 @@ final class GripDragCoordinator {
     private func beginTracking(at point: CGPoint, tracked: TrackedWindow, variant: LayoutVariant) {
         guard let screen = overlay.screenContaining(point: point) else { return }
         overlay.show(on: screen, variant: variant)
+        flashIndicator.flash(cgFrame: tracked.originalFrame)
         // Refine the multi-cell anchor placeholder now that the resolver is built.
         if let cell = overlay.cell(at: point) {
             stateLock.withLock { state in
@@ -283,14 +264,25 @@ final class GripDragCoordinator {
         defer { overlay.hide() }
         guard let cell = overlay.cell(at: point) else { return }
         let targetRect: CGRect?
+        let anchor: GridCell
         switch phase {
         case .single:
             targetRect = overlay.cellRect(at: cell)
-        case .multi(let anchor):
-            targetRect = overlay.regionUnion(from: anchor, to: cell)
+            anchor = cell
+        case .multi(let a):
+            targetRect = overlay.regionUnion(from: a, to: cell)
+            anchor = a
         }
         guard let rect = targetRect else { return }
         WindowManipulator.shared.setFrame(rect, for: tracked.axElement)
+        recordInHistory(anchor: anchor, current: cell)
+    }
+
+    private func recordInHistory(anchor: GridCell, current: GridCell) {
+        let (rows, cols) = overlay.gridDimensions
+        guard rows > 0, cols > 0 else { return }
+        let spec = SnapSpec(rows: rows, cols: cols, anchor: anchor, current: current)
+        SnapHistory.shared.push(spec)
     }
 
     private func cancelTracking() {

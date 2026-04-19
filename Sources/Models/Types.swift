@@ -2,7 +2,7 @@
 
 // MARK: - Grid
 
-struct GridCell: Equatable, Hashable, Sendable {
+struct GridCell: Equatable, Hashable, Codable, Sendable {
     let row: Int
     let col: Int
 }

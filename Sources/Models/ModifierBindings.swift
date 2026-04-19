@@ -17,9 +17,9 @@ struct ModifierBindings: Equatable, Sendable {
     var stretch: PressedModifiers
 
     static let `default` = ModifierBindings(
-        grip: .shift,
-        flip: .control,
-        stretch: .option
+        grip: .control,
+        flip: .option,
+        stretch: .command
     )
 
     func keys(for role: ModifierRole) -> PressedModifiers {
@@ -57,24 +57,6 @@ extension ModifierBindings {
     }
 
     var isValid: Bool { validate().isEmpty }
-}
-
-// MARK: - Keyboard match
-
-extension ModifierBindings {
-    /// Returns which layout variant (if any) the currently pressed modifier
-    /// set selects. Returns `nil` when the user is not invoking a keyboard
-    /// snap shortcut (e.g. Grip or Stretch partially missing).
-    ///
-    /// Extra modifiers beyond what the binding requires are ignored —
-    /// matching the pre-refactor behavior where `Shift+Opt+Cmd+Arrow` still
-    /// triggered a primary snap.
-    func keyboardVariant(pressed: PressedModifiers) -> LayoutVariant? {
-        guard grip.isSubset(of: pressed), stretch.isSubset(of: pressed) else {
-            return nil
-        }
-        return flip.isSubset(of: pressed) ? .secondary : .primary
-    }
 }
 
 // MARK: - Persistence

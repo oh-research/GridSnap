@@ -35,6 +35,12 @@ final class GripDragOverlayHost {
         activeScreen = nil
     }
 
+    /// Current grid shape — populated after `show(on:variant:)` builds the
+    /// resolver. `(0, 0)` until then.
+    var gridDimensions: (rows: Int, cols: Int) {
+        (gridCells.count, gridCells.first?.count ?? 0)
+    }
+
     // MARK: - Highlight
 
     func updateHighlight(cell: GridCell) { active?.updateHighlight(cell: cell) }

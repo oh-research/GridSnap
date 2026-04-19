@@ -12,8 +12,6 @@ final class PreferencesStore: ObservableObject {
     @AppStorage("gridPadding") var padding: Double = 0
     @AppStorage("onboardingCompleted") var onboardingCompleted: Bool = false
     @AppStorage("isEnabled") var isEnabled: Bool = true
-    @AppStorage("keyboardSnapEnabled") var keyboardSnapEnabled: Bool = false
-    @AppStorage("keyboardSnapInterceptInTextFields") var interceptInTextFields: Bool = false
 
     /// Role-to-modifier bindings. Readable directly by SwiftUI so labels
     /// update immediately when `updateBindings(_:)` writes new values.
@@ -27,6 +25,7 @@ final class PreferencesStore: ObservableObject {
 
     private init() {
         Self.migrateLegacyGridKeysIfNeeded()
+        Self.purgeRetiredKeys()
     }
 
     /// Persists new bindings to UserDefaults and publishes the change so
@@ -66,6 +65,20 @@ final class PreferencesStore: ObservableObject {
     /// row/col swap of the legacy value so users immediately see a meaningful
     /// difference when holding Opt. Legacy keys are left in place as a rollback
     /// safety net.
+    /// Drops UserDefaults keys from pre-Snapshot builds so the old
+    /// ⇧⌥+arrow keyboard shortcut toggles don't linger. Silent — users
+    /// upgrading from v1.2.0 shouldn't see a prompt.
+    private static func purgeRetiredKeys() {
+        let defaults = UserDefaults.standard
+        let retired = [
+            "keyboardSnapEnabled",
+            "keyboardSnapInterceptInTextFields",
+        ]
+        for key in retired {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     private static func migrateLegacyGridKeysIfNeeded() {
         let defaults = UserDefaults.standard
         guard defaults.object(forKey: "primaryRows") == nil else { return }

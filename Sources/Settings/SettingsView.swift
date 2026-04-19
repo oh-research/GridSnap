@@ -5,73 +5,44 @@ struct SettingsView: View {
     @State private var launchAtLogin = LoginItemHelper.isEnabled
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             LayoutEditor(
-                title: "Primary layout (\(prefs.bindings.grip.formatted))",
+                title: "Primary layout",
+                modifierBadge: prefs.bindings.grip.formatted,
+                accent: .accentColor,
                 rows: $prefs.primaryRows,
                 cols: $prefs.primaryCols
             )
 
             LayoutEditor(
-                title: "Secondary layout (\(prefs.bindings.grip.formatted) + \(prefs.bindings.flip.formatted))",
+                title: "Secondary layout",
+                modifierBadge: "\(prefs.bindings.grip.formatted) + \(prefs.bindings.flip.formatted)",
+                accent: .secondary,
                 rows: $prefs.secondaryRows,
                 cols: $prefs.secondaryCols
             )
 
-            GroupBox("Modifier bindings") {
+            GroupBox(label:
+                Label("Modifier bindings", systemImage: "command")
+                    .labelStyle(.titleAndIcon)
+            ) {
                 ModifierBindingView()
             }
 
-            HStack(spacing: 8) {
-                ToggleTile(
-                    title: "Keyboard\nshortcut",
-                    isOn: $prefs.keyboardSnapEnabled
-                )
-                ToggleTile(
-                    title: "Intercept\nin text fields",
-                    isOn: $prefs.interceptInTextFields,
-                    enabled: prefs.keyboardSnapEnabled
-                )
-                ToggleTile(
-                    title: "Launch\nat login",
-                    isOn: $launchAtLogin
-                )
-                .onChange(of: launchAtLogin) {
-                    LoginItemHelper.setEnabled(launchAtLogin)
-                }
+            HStack {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) {
+                        LoginItemHelper.setEnabled(launchAtLogin)
+                    }
+                Spacer()
             }
         }
         .padding(20)
-        .frame(width: 340)
-    }
-}
-
-// MARK: - Toggle tile
-
-/// Tall two-line toggle button used by the Settings footer row.
-/// Active state is signalled by a blue border overlay rather than a
-/// filled background — easier on the eyes than solid accent fill.
-private struct ToggleTile: View {
-    let title: String
-    @Binding var isOn: Bool
-    var enabled: Bool = true
-
-    var body: some View {
-        Button {
-            isOn.toggle()
-        } label: {
-            Text(title)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, minHeight: 36)
-                .padding(.vertical, 6)
-        }
-        .buttonStyle(.bordered)
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(isOn ? Color.accentColor : Color.clear, lineWidth: 2)
-        )
-        .disabled(!enabled)
+        .frame(width: 440)
+        .fixedSize(horizontal: false, vertical: true)
+        // Suppresses the blue focus ring that macOS auto-attaches to the
+        // first focusable control (Rows stepper) when the window opens.
+        .focusEffectDisabled()
     }
 }
 
@@ -79,73 +50,104 @@ private struct ToggleTile: View {
 
 private struct LayoutEditor: View {
     let title: String
+    let modifierBadge: String
+    let accent: Color
     @Binding var rows: Int
     @Binding var cols: Int
 
     var body: some View {
-        GroupBox {
-            VStack(spacing: 10) {
-                HStack {
-                    Text("Rows")
-                    Spacer()
-                    Stepper("\(rows)", value: $rows, in: 1...10)
+        VStack(alignment: .leading, spacing: 10) {
+            header
+
+            HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: 6) {
+                    dimensionRow(label: "Rows", value: $rows)
+                    dimensionRow(label: "Cols", value: $cols)
                 }
-                HStack {
-                    Text("Columns")
-                    Spacer()
-                    Stepper("\(cols)", value: $cols, in: 1...10)
-                }
-                GridPreview(rows: rows, cols: cols)
-                    .frame(height: 80)
+                .frame(width: 150)
+
+                LayoutGridPreview(rows: rows, cols: cols, accent: accent)
+                    .aspectRatio(16.0 / 10.0, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: 90)
             }
-            .padding(.vertical, 4)
-        } label: {
-            Text(verbatim: title)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.secondary.opacity(0.05))
+        )
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "rectangle.split.3x3.fill")
+                .foregroundStyle(accent)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text(modifierBadge)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.12))
+                )
+            Spacer()
+        }
+    }
+
+    private func dimensionRow(label: String, value: Binding<Int>) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 32, alignment: .leading)
+            Text("\(value.wrappedValue)")
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .monospacedDigit()
+                .frame(minWidth: 22, alignment: .trailing)
+            Stepper("", value: value, in: 1...10)
+                .labelsHidden()
+                .controlSize(.small)
         }
     }
 }
 
-// MARK: - Preview widget
+// MARK: - Grid preview
 
-struct GridPreview: View {
+/// Draws each cell as a small rounded rectangle filled with the layout's
+/// accent color — gives the settings pane a screen-like feel instead of
+/// a flat wireframe. Respects a 16:10 aspect ratio from the parent.
+struct LayoutGridPreview: View {
     let rows: Int
     let cols: Int
+    let accent: Color
 
     var body: some View {
-        GeometryReader { geo in
-            let screenRatio: CGFloat = 16.0 / 10.0
-            let previewHeight = geo.size.height
-            let previewWidth = min(geo.size.width, previewHeight * screenRatio)
+        Canvas { context, size in
+            let gap: CGFloat = 3
+            let cellW = (size.width  - CGFloat(cols - 1) * gap) / CGFloat(cols)
+            let cellH = (size.height - CGFloat(rows - 1) * gap) / CGFloat(rows)
 
-            let offsetX = (geo.size.width - previewWidth) / 2
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.secondary.opacity(0.1))
-                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-
-                Canvas { context, size in
-                    let cellW = size.width / CGFloat(cols)
-                    let cellH = size.height / CGFloat(rows)
-
-                    for c in 1..<cols {
-                        let x = CGFloat(c) * cellW
-                        var path = Path()
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x, y: size.height))
-                        context.stroke(path, with: .color(.secondary.opacity(0.4)), lineWidth: 0.5)
-                    }
-                    for r in 1..<rows {
-                        let y = CGFloat(r) * cellH
-                        var path = Path()
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: size.width, y: y))
-                        context.stroke(path, with: .color(.secondary.opacity(0.4)), lineWidth: 0.5)
-                    }
+            for r in 0..<rows {
+                for c in 0..<cols {
+                    let x = CGFloat(c) * (cellW + gap)
+                    let y = CGFloat(r) * (cellH + gap)
+                    let rect = CGRect(x: x, y: y, width: cellW, height: cellH)
+                    let path = Path(roundedRect: rect, cornerRadius: 4)
+                    context.fill(path, with: .color(accent.opacity(0.18)))
+                    context.stroke(path, with: .color(accent.opacity(0.55)), lineWidth: 1)
                 }
             }
-            .frame(width: previewWidth, height: previewHeight)
-            .offset(x: offsetX)
         }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(NSColor.textBackgroundColor).opacity(0.4))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+        )
     }
 }

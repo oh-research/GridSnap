@@ -1,92 +1,112 @@
 import SwiftUI
 
 /// Settings sub-view for rebinding the Grip / Flip / Stretch roles to
-/// physical modifier keys. Renders a 3×5 toggle grid, a live validation
-/// message, and a reset button. Invalid selections are kept in-memory
-/// (the user can recover) but never persisted — so coordinators on the
-/// event-tap thread always read a valid binding.
+/// physical modifier keys. Each role renders as a card with an icon,
+/// description, and four keycap toggles (⇧⌃⌥⌘). Invalid selections
+/// are kept in-memory so the user can recover, but never persisted —
+/// event-tap coordinators always read a valid binding.
 struct ModifierBindingView: View {
 
     @ObservedObject private var prefs = PreferencesStore.shared
     @State private var draft: ModifierBindings = .load()
 
-    // `.function` is intentionally omitted: macOS auto-sets the Fn flag
-    // on arrow keypresses, so a role bound to fn would match too permissively.
-    // The strip-on-load migration in `ModifierBindings.load()` ensures any
-    // previously stored fn bit is scrubbed regardless of UI exposure.
+    // `.function` is intentionally omitted: macOS auto-sets the fn flag
+    // on arrow keypresses, which would make a fn-bound role match too
+    // permissively. `ModifierBindings.load()` also strips it on load.
     private static let keys: [ModifierKey] = [.shift, .control, .option, .command]
     private static let roles: [ModifierRole] = [.grip, .flip, .stretch]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            headerRow
             ForEach(Self.roles, id: \.self) { role in
-                roleRow(role)
+                roleCard(role)
             }
-            Divider()
-            HStack {
-                validationLabel
-                Spacer()
-                Button("Reset to defaults") { resetToDefaults() }
-                    .font(.caption)
-                    .controlSize(.small)
-            }
+            footer
         }
         .padding(.vertical, 4)
-        // Suppress the auto-focus ring on the first toggle when the
-        // Settings window opens — the Settings surface has no useful
-        // keyboard navigation target, so the ring is pure noise.
         .focusEffectDisabled()
     }
 
-    // MARK: - Rows
+    // MARK: - Role card
 
-    private var headerRow: some View {
-        HStack(spacing: 0) {
-            Spacer().frame(width: 60)
-            ForEach(Self.keys, id: \.self) { key in
-                Text(key.symbol)
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 32)
+    private func roleCard(_ role: ModifierRole) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: Self.icon(for: role))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                    Text(role.label)
+                        .font(.subheadline.weight(.semibold))
+                }
+                Text(Self.describe(role))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 22)
+            }
+            .frame(width: 170, alignment: .leading)
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 4) {
+                ForEach(Self.keys, id: \.self) { key in
+                    ModifierCap(
+                        symbol: key.symbol,
+                        isOn: draft.keys(for: role).contains(PressedModifiers([key]))
+                    ) {
+                        apply(role: role, key: key, include: !draft.keys(for: role).contains(PressedModifiers([key])))
+                    }
+                }
             }
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.secondary.opacity(0.05))
+        )
     }
 
-    private func roleRow(_ role: ModifierRole) -> some View {
-        HStack(spacing: 0) {
-            Text(role.label)
-                .font(.subheadline)
-                .frame(width: 60, alignment: .leading)
-            ForEach(Self.keys, id: \.self) { key in
-                Toggle("", isOn: binding(for: role, key: key))
-                    .labelsHidden()
-                    .focusable(false)
-                    .frame(width: 32)
-            }
-        }
-    }
+    // MARK: - Footer
 
-    private var validationLabel: some View {
-        Group {
+    private var footer: some View {
+        HStack {
             if let message = firstIssueMessage {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
                     .foregroundStyle(.orange)
-            } else {
-                Label("Valid", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
             }
+            Spacer()
+            Button {
+                resetToDefaults()
+            } label: {
+                Label("Reset", systemImage: "arrow.uturn.backward")
+            }
+            .controlSize(.small)
         }
-        .font(.caption)
+        .padding(.top, 2)
+    }
+
+    // MARK: - Role metadata
+
+    private static func icon(for role: ModifierRole) -> String {
+        switch role {
+        case .grip:    return "hand.point.up.braille.fill"
+        case .flip:    return "rectangle.2.swap"
+        case .stretch: return "arrow.up.left.and.arrow.down.right"
+        }
+    }
+
+    private static func describe(_ role: ModifierRole) -> String {
+        switch role {
+        case .grip:    return "Hold to grab a window"
+        case .flip:    return "Swap primary ↔ secondary layout"
+        case .stretch: return "Select a multi-cell region"
+        }
     }
 
     // MARK: - State bridging
-
-    private func binding(for role: ModifierRole, key: ModifierKey) -> Binding<Bool> {
-        Binding(
-            get: { draft.keys(for: role).contains(PressedModifiers([key])) },
-            set: { isOn in apply(role: role, key: key, include: isOn) }
-        )
-    }
 
     private func apply(role: ModifierRole, key: ModifierKey, include: Bool) {
         var updated = draft.keys(for: role)
@@ -122,5 +142,48 @@ struct ModifierBindingView: View {
             let shared = draft.keys(for: a).intersection(draft.keys(for: b))
             return "\(a.label) and \(b.label) share \(shared.symbol)"
         }
+    }
+}
+
+// MARK: - Modifier keycap toggle
+
+/// Pressable keycap button that flips `isOn` on click. Accent-filled
+/// when on, neutral-outlined when off. Matches the look of `KeycapView`
+/// used elsewhere in Settings / Snapshots.
+private struct ModifierCap: View {
+
+    let symbol: String
+    let isOn: Bool
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(symbol)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundStyle(isOn ? Color.accentColor : .primary)
+                .frame(width: 32, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(fillColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(strokeColor, lineWidth: isOn ? 1.5 : 0.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+
+    private var fillColor: Color {
+        if isOn { return Color.accentColor.opacity(0.18) }
+        if hovering { return Color.secondary.opacity(0.12) }
+        return Color(NSColor.controlBackgroundColor)
+    }
+
+    private var strokeColor: Color {
+        isOn ? Color.accentColor : Color.secondary.opacity(0.35)
     }
 }
